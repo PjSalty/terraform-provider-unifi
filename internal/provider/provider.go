@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -10,6 +12,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/filipowm/go-unifi/v2/unifi"
+	"github.com/google/uuid"
 )
 
 var _ provider.Provider = &UniFiProvider{}
@@ -32,14 +37,12 @@ type UniFiProviderModel struct {
 	DestroyProtection types.Bool   `tfsdk:"destroy_protection"`
 }
 
-// ProviderData is the resolved configuration handed to every resource and data
-// source through Configure. The go-unifi/v2 official client is added to this in
-// Step 2.
+// ProviderData is handed to every resource and data source through Configure.
+// SiteID is the Official-API site UUID that every resource-group call needs.
 type ProviderData struct {
-	APIURL            string
-	APIKey            string
+	Client            unifi.Client
+	SiteID            uuid.UUID
 	Site              string
-	AllowInsecure     bool
 	ReadOnly          bool
 	DestroyProtection bool
 }
@@ -96,20 +99,16 @@ func (p *UniFiProvider) Configure(ctx context.Context, req provider.ConfigureReq
 		return
 	}
 
-	data := ProviderData{
-		APIURL:            firstNonEmpty(cfg.APIURL.ValueString(), os.Getenv("UNIFI_API")),
-		APIKey:            firstNonEmpty(cfg.APIKey.ValueString(), os.Getenv("UNIFI_API_KEY")),
-		Site:              firstNonEmpty(cfg.Site.ValueString(), os.Getenv("UNIFI_SITE"), "default"),
-		AllowInsecure:     cfg.AllowInsecure.ValueBool() || os.Getenv("UNIFI_INSECURE") == "true",
-		ReadOnly:          cfg.ReadOnly.ValueBool() || os.Getenv("UNIFI_READ_ONLY") == "true",
-		DestroyProtection: cfg.DestroyProtection.ValueBool() || os.Getenv("UNIFI_DESTROY_PROTECTION") == "true",
-	}
+	apiURL := firstNonEmpty(cfg.APIURL.ValueString(), os.Getenv("UNIFI_API"))
+	apiKey := firstNonEmpty(cfg.APIKey.ValueString(), os.Getenv("UNIFI_API_KEY"))
+	site := firstNonEmpty(cfg.Site.ValueString(), os.Getenv("UNIFI_SITE"), "default")
+	allowInsecure := cfg.AllowInsecure.ValueBool() || os.Getenv("UNIFI_INSECURE") == "true"
 
-	if data.APIURL == "" {
+	if apiURL == "" {
 		resp.Diagnostics.AddAttributeError(path.Root("api_url"), "Missing api_url",
 			"Set the api_url argument or the UNIFI_API environment variable.")
 	}
-	if data.APIKey == "" {
+	if apiKey == "" {
 		resp.Diagnostics.AddAttributeError(path.Root("api_key"), "Missing api_key",
 			"Set the api_key argument or the UNIFI_API_KEY environment variable.")
 	}
@@ -117,19 +116,54 @@ func (p *UniFiProvider) Configure(ctx context.Context, req provider.ConfigureReq
 		return
 	}
 
-	// shortcut: Step 1 validates and stores config only. Step 2 wires the
-	// go-unifi/v2 official client (unifi.NewClient ... c.Official()), resolves
-	// the site name to a UUID, and gates on Network >= 10.1.78. Resources and
-	// data sources are added in Steps 3-5.
-	resp.ResourceData = &data
-	resp.DataSourceData = &data
+	// APIStyleNew pins the UniFi OS path layout and skips the legacy style probe;
+	// SkipSystemInfo defers the connectivity round-trip to the official gate below.
+	client, err := unifi.NewClient(&unifi.ClientConfig{
+		URL:            apiURL,
+		APIKey:         apiKey,
+		SkipVerifySSL:  allowInsecure,
+		APIStyle:       unifi.APIStyleNew,
+		SkipSystemInfo: true,
+	})
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to build the UniFi client", err.Error())
+		return
+	}
+
+	// Resolving the site name to its UUID is the first official-API call, so it
+	// triggers the capability gate (new-style controller running Network >=
+	// 10.1.78). A gate failure means this controller cannot serve the official
+	// API, the bare Network Application container is the usual cause.
+	siteID, err := client.Official().Sites().ResolveID(ctx, site)
+	if err != nil {
+		if errors.Is(err, unifi.ErrOfficialAPIUnavailable) {
+			resp.Diagnostics.AddError("UniFi official API unavailable",
+				fmt.Sprintf("This provider requires a UniFi OS controller running Network >= 10.1.78 with X-API-KEY auth (UDM, Cloud Key, or UniFi OS Server). %v", err))
+		} else {
+			resp.Diagnostics.AddError("Failed to resolve the UniFi site",
+				fmt.Sprintf("Could not resolve site %q: %v", site, err))
+		}
+		return
+	}
+
+	data := &ProviderData{
+		Client:            client,
+		SiteID:            siteID,
+		Site:              site,
+		ReadOnly:          cfg.ReadOnly.ValueBool() || os.Getenv("UNIFI_READ_ONLY") == "true",
+		DestroyProtection: cfg.DestroyProtection.ValueBool() || os.Getenv("UNIFI_DESTROY_PROTECTION") == "true",
+	}
+	resp.ResourceData = data
+	resp.DataSourceData = data
 }
 
 func (p *UniFiProvider) Resources(_ context.Context) []func() resource.Resource {
+	// shortcut: empty until Steps 3-4 add unifi_network and unifi_wifi_broadcast.
 	return []func() resource.Resource{}
 }
 
 func (p *UniFiProvider) DataSources(_ context.Context) []func() datasource.DataSource {
+	// shortcut: empty until Step 5 adds the unifi_devices data source.
 	return []func() datasource.DataSource{}
 }
 
