@@ -1,0 +1,17 @@
+terraform-provider-unifi
+Copyright 2026 PjSalty
+
+Licensed under the Mozilla Public License 2.0 (see LICENSE).
+
+This provider depends on and is informed by the following Mozilla Public
+License 2.0 projects:
+
+- github.com/filipowm/go-unifi (v2) -- the UniFi API client this provider is
+  built on, including its generated official-API (Integration API) frontend.
+
+- github.com/filipowm/terraform-provider-unifi -- referenced for resource field
+  semantics only. No source is copied. Resources here are implemented fresh on
+  the terraform-plugin-framework against the official API.
+
+UniFi and UniFi OS are trademarks of Ubiquiti Inc. This project is independent
+and is not affiliated with, authorized, or endorsed by Ubiquiti.
