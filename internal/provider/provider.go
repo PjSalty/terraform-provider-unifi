@@ -15,6 +15,7 @@ import (
 
 	"github.com/filipowm/go-unifi/v2/unifi"
 
+	"github.com/PjSalty/terraform-provider-unifi/internal/datasources"
 	"github.com/PjSalty/terraform-provider-unifi/internal/providerdata"
 	"github.com/PjSalty/terraform-provider-unifi/internal/resources"
 )
@@ -157,8 +158,9 @@ func (p *UniFiProvider) Resources(_ context.Context) []func() resource.Resource 
 }
 
 func (p *UniFiProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	// shortcut: empty until Step 5 adds the unifi_devices data source.
-	return []func() datasource.DataSource{}
+	return []func() datasource.DataSource{
+		datasources.NewDevicesDataSource,
+	}
 }
 
 // firstNonEmpty returns the first non-empty string, used for the
