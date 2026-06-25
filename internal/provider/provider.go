@@ -154,12 +154,18 @@ func (p *UniFiProvider) Resources(_ context.Context) []func() resource.Resource 
 	return []func() resource.Resource{
 		resources.NewNetworkResource,
 		resources.NewWifiBroadcastResource,
+		resources.NewDNSPolicyResource,
+		resources.NewACLRuleResource,
+		resources.NewTrafficMatchingListResource,
+		resources.NewHotspotVoucherResource,
+		resources.NewFirewallZoneResource,
 	}
 }
 
 func (p *UniFiProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		datasources.NewDevicesDataSource,
+		datasources.NewClientsDataSource,
 	}
 }
 
