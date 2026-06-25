@@ -152,6 +152,7 @@ func (p *UniFiProvider) Configure(ctx context.Context, req provider.ConfigureReq
 func (p *UniFiProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		resources.NewNetworkResource,
+		resources.NewWifiBroadcastResource,
 	}
 }
 
