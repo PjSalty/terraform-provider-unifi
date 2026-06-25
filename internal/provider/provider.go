@@ -14,7 +14,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/filipowm/go-unifi/v2/unifi"
-	"github.com/google/uuid"
+
+	"github.com/PjSalty/terraform-provider-unifi/internal/providerdata"
+	"github.com/PjSalty/terraform-provider-unifi/internal/resources"
 )
 
 var _ provider.Provider = &UniFiProvider{}
@@ -35,16 +37,6 @@ type UniFiProviderModel struct {
 	AllowInsecure     types.Bool   `tfsdk:"allow_insecure"`
 	ReadOnly          types.Bool   `tfsdk:"read_only"`
 	DestroyProtection types.Bool   `tfsdk:"destroy_protection"`
-}
-
-// ProviderData is handed to every resource and data source through Configure.
-// SiteID is the Official-API site UUID that every resource-group call needs.
-type ProviderData struct {
-	Client            unifi.Client
-	SiteID            uuid.UUID
-	Site              string
-	ReadOnly          bool
-	DestroyProtection bool
 }
 
 // New returns the provider factory consumed by main.go.
@@ -146,7 +138,7 @@ func (p *UniFiProvider) Configure(ctx context.Context, req provider.ConfigureReq
 		return
 	}
 
-	data := &ProviderData{
+	data := &providerdata.Data{
 		Client:            client,
 		SiteID:            siteID,
 		Site:              site,
@@ -158,8 +150,9 @@ func (p *UniFiProvider) Configure(ctx context.Context, req provider.ConfigureReq
 }
 
 func (p *UniFiProvider) Resources(_ context.Context) []func() resource.Resource {
-	// shortcut: empty until Steps 3-4 add unifi_network and unifi_wifi_broadcast.
-	return []func() resource.Resource{}
+	return []func() resource.Resource{
+		resources.NewNetworkResource,
+	}
 }
 
 func (p *UniFiProvider) DataSources(_ context.Context) []func() datasource.DataSource {

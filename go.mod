@@ -6,6 +6,7 @@ require (
 	github.com/filipowm/go-unifi/v2 v2.0.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
+	github.com/hashicorp/terraform-plugin-framework-validators v0.19.0
 )
 
 require (
