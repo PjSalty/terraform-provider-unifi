@@ -266,7 +266,8 @@ func TestConfigureEnvFallback(t *testing.T) {
 // TestResourcesAndDataSources proves both registries return working factories.
 // 8 resources (network, wifi_broadcast, dns_policy, acl_rule,
 // traffic_matching_list, hotspot_voucher, firewall_zone, firewall_policy) and
-// 10 data sources.
+// 11 data sources (devices, clients, sites, networks, firewall_zones,
+// radius_profiles, wans, device_tags, dpi x2, wifi_broadcasts).
 func TestResourcesAndDataSources(t *testing.T) {
 	p := &UniFiProvider{}
 	res := p.Resources(context.Background())
@@ -279,8 +280,8 @@ func TestResourcesAndDataSources(t *testing.T) {
 		}
 	}
 	ds := p.DataSources(context.Background())
-	if len(ds) != 10 {
-		t.Errorf("data sources = %d, want 10", len(ds))
+	if len(ds) != 11 {
+		t.Errorf("data sources = %d, want 11", len(ds))
 	}
 	for i, f := range ds {
 		if f() == nil {
