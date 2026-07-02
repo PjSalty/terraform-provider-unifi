@@ -1,0 +1,3 @@
+kind: Added
+body: '`unifi_wifi_broadcast`: `multicast_to_unicast_conversion_enabled` (Multicast Enhancement/IGMPv3), `uapsd_enabled` (WMM power save), and `client_filter_action` + `client_filter_mac_addresses` (per-SSID MAC allow/deny list, e.g. to lock a hardened IoT SSID to a known device allowlist). The two toggles also refresh on Read for drift detection.'
+time: 2026-07-02T06:28:03.000000000Z

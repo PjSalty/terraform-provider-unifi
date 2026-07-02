@@ -47,12 +47,16 @@ resource "unifi_wifi_broadcast" "iot" {
 
 - `broadcasting_device_filter` (Set of String) UUIDs of the APs that broadcast this SSID. Omit to broadcast on all APs.
 - `broadcasting_frequencies_ghz` (Set of String) Frequency bands to advertise on: any of "2.4", "5", "6".
+- `client_filter_action` (String) Per-SSID MAC filtering mode: ALLOW (only client_filter_mac_addresses may join) or BLOCK (those MACs are denied). Omit to disable MAC filtering. Requires client_filter_mac_addresses.
+- `client_filter_mac_addresses` (Set of String) MAC addresses the client_filter_action applies to (max 512). Lock a hardened IoT SSID to a known device allowlist.
 - `client_isolation_enabled` (Boolean) Prevent clients on this SSID from reaching each other.
 - `enabled` (Boolean) Whether the SSID is enabled.
 - `hide_name` (Boolean) Hide the SSID (do not broadcast the name).
+- `multicast_to_unicast_conversion_enabled` (Boolean) Multicast Enhancement (IGMPv3): convert multicast frames to unicast so streaming/discovery traffic (Chromecast, AirPlay, mDNS) is delivered reliably over WiFi instead of at the slow multicast basic rate.
 - `network_id` (String) UUID of the network (VLAN) to bind clients to. Omit for the native network.
 - `passphrase` (String, Sensitive) Pre-shared key (8-63 chars). Required for the personal security modes; omit for OPEN.
 - `pmf_mode` (String) Protected Management Frames: REQUIRED or OPTIONAL. WPA3 implies required.
+- `uapsd_enabled` (Boolean) Unscheduled Automatic Power Save Delivery (U-APSD / WMM power save) for battery clients. Can add latency on some devices, so it defaults off.
 
 ### Read-Only
 
