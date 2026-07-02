@@ -6,6 +6,28 @@ batched from `.changelog/unreleased/` by changie.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-02
+
+### Added
+
+- `unifi_firewall_policy` resource: zone-based firewall rules with full CRUD.
+  Firewall zones alone are inert, so this adds the rules that govern traffic
+  between them. Covers action (ALLOW/BLOCK/REJECT with allow_return_traffic),
+  ip_protocol_scope (ip_version plus named protocol), connection_state_filter,
+  ipsec_filter, and source/destination blocks (zone_id plus network/ip/port/
+  domain traffic filters). Niche filter variants (region, VPN, application,
+  ranges) and the schedule block are deferred with greppable `shortcut:` notes.
+- Eight read-only reference data sources that resolve names to the UUIDs
+  resources need: `unifi_sites`, `unifi_networks`, `unifi_firewall_zones`
+  (surfaces SYSTEM-defined zones that no resource can create),
+  `unifi_radius_profiles`, `unifi_wans`, `unifi_device_tags`,
+  `unifi_dpi_applications`, and `unifi_dpi_application_categories`.
+- `unifi_wifi_broadcast`: `multicast_to_unicast_conversion_enabled` (Multicast
+  Enhancement / IGMPv3), `uapsd_enabled` (WMM power save), and
+  `client_filter_action` plus `client_filter_mac_addresses` (per-SSID MAC
+  allow/deny list, e.g. to lock a hardened IoT SSID to a known device
+  allowlist). The two toggles also refresh on Read for drift detection.
+
 ## [0.2.0] - 2026-07-01
 
 ### Changed

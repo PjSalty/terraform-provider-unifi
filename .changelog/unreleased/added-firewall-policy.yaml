@@ -1,3 +1,0 @@
-kind: Added
-body: '`unifi_firewall_policy` resource: zone-based firewall rules with full CRUD. Covers the action (ALLOW/BLOCK/REJECT with allow_return_traffic), ip_protocol_scope (ip_version plus named protocol), connection_state_filter, ipsec_filter, and source/destination blocks (zone_id plus network/ip/port/domain traffic filters). Firewall zones alone are inert; this is the resource that governs traffic between them.'
-time: 2026-07-02T06:28:01.000000000Z
