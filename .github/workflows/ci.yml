@@ -39,32 +39,18 @@ jobs:
       - name: tiered coverage gate
         shell: bash
         run: |
-          # The v2.0 WS cutover changed the coverage model. The
-          # resource and datasource layers can't be unit-covered
-          # against the WS transport without rewriting fixtures to
-          # use internal/wsclient/testserver.go. Until that rewrite
-          # lands, the acc suite (TF_ACC=1 against live TrueNAS) is
-          # the canonical coverage source for those layers. Tier 1
-          # holds high; Tier 2 gets floors.
-          #
-          # Mirrors scripts/acc.sh stage 4, keep in sync.
+          # Statement-coverage floors per package. The Integration API is
+          # plain HTTP+JSON, so every layer is unit-coverable against the
+          # httptest fake in internal/testutil - no live controller needed.
+          # Tier 1 = helpers, Tier 2 = CRUD layers. Both hold at 100.
           declare -A TIER1=(
-            [github.com/PjSalty/terraform-provider-unifi/internal/types]=100
-            [github.com/PjSalty/terraform-provider-unifi/internal/validators]=100
-            [github.com/PjSalty/terraform-provider-unifi/internal/resourcevalidators]=100
-            [github.com/PjSalty/terraform-provider-unifi/internal/planhelpers]=100
-            [github.com/PjSalty/terraform-provider-unifi/internal/planmodifiers]=100
-            [github.com/PjSalty/terraform-provider-unifi/internal/flex]=100
-            [github.com/PjSalty/terraform-provider-unifi/internal/acctest]=100
-            [github.com/PjSalty/terraform-provider-unifi/internal/wsclient]=100
-            [github.com/PjSalty/terraform-provider-unifi/internal/sweep]=100
-            [github.com/PjSalty/terraform-provider-unifi/internal/fwresource]=100
+            [github.com/PjSalty/terraform-provider-unifi/internal/providerdata]=100
+            [github.com/PjSalty/terraform-provider-unifi/internal/testutil]=100
           )
           declare -A TIER2_FLOOR=(
             [github.com/PjSalty/terraform-provider-unifi/internal/resources]=100
             [github.com/PjSalty/terraform-provider-unifi/internal/datasources]=100
             [github.com/PjSalty/terraform-provider-unifi/internal/provider]=100
-            [github.com/PjSalty/terraform-provider-unifi/internal/recordreplay]=100
           )
 
           declare -A PKG_COV

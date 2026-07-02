@@ -417,6 +417,6 @@ func int32Ptr(i types.Int64) *int32 {
 	if i.IsNull() || i.IsUnknown() {
 		return nil
 	}
-	v := int32(i.ValueInt64())
+	v := safeInt32(i.ValueInt64())
 	return &v
 }

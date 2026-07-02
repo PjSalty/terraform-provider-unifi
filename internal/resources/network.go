@@ -190,7 +190,7 @@ func (r *networkResource) ImportState(ctx context.Context, req resource.ImportSt
 func expandNetwork(m networkModel) official.NetworkCreateOrUpdate {
 	return official.NetworkCreateOrUpdate{
 		Name:       m.Name.ValueString(),
-		VlanId:     int32(m.VlanID.ValueInt64()),
+		VlanId:     safeInt32(m.VlanID.ValueInt64()),
 		Enabled:    m.Enabled.ValueBool(),
 		Management: "UNMANAGED",
 	}

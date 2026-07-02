@@ -2,6 +2,8 @@ module github.com/PjSalty/terraform-provider-unifi
 
 go 1.26.0
 
+toolchain go1.26.4
+
 require (
 	github.com/filipowm/go-unifi/v2 v2.0.0
 	github.com/google/uuid v1.6.0

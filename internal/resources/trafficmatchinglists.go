@@ -378,7 +378,7 @@ func parsePort(s, field string, diags *diag.Diagnostics) (int32, bool) {
 		diags.AddError("Port out of range", fmt.Sprintf("%s = %d, want 1-65535", field, n))
 		return 0, false
 	}
-	return int32(n), true
+	return safeInt32(int64(n)), true
 }
 
 // flattenTrafficMatchingList reads the union back into state. The top-level

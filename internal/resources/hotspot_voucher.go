@@ -320,7 +320,7 @@ func flattenHotspotVouchers(ctx context.Context, in hotspotVoucherModel, voucher
 	out := in
 	out.ID = types.StringValue(vouchers[0].Id.String())
 	out.Name = types.StringValue(vouchers[0].Name)
-	out.Count = types.Int32Value(int32(len(vouchers)))
+	out.Count = types.Int32Value(safeInt32(int64(len(vouchers))))
 	out.TimeLimitMinutes = types.Int64Value(vouchers[0].TimeLimitMinutes)
 	out.AuthorizedGuestLimit = optInt64(vouchers[0].AuthorizedGuestLimit)
 	out.DataUsageLimitMBytes = optInt64(vouchers[0].DataUsageLimitMBytes)

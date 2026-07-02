@@ -385,7 +385,7 @@ func expandMACEndpoint(ctx context.Context, ep *aclRuleEndpointModel, diags *dia
 	}
 	filter := official.MacAclRuleMacAddressEndpointFilter{MacAddresses: &macs}
 	if !ep.PrefixLength.IsNull() && !ep.PrefixLength.IsUnknown() {
-		pl := int32(ep.PrefixLength.ValueInt64())
+		pl := safeInt32(ep.PrefixLength.ValueInt64())
 		filter.PrefixLength = &pl
 	}
 	out := &official.MACACLRuleEndpoint{}
@@ -430,7 +430,7 @@ func listToInt32s(ctx context.Context, l types.List, diags *diag.Diagnostics) []
 	diags.Append(l.ElementsAs(ctx, &ints, false)...)
 	out := make([]int32, 0, len(ints))
 	for _, v := range ints {
-		out = append(out, int32(v))
+		out = append(out, safeInt32(v))
 	}
 	return out
 }
