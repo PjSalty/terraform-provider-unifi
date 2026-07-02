@@ -47,7 +47,7 @@ func dnspPlan(t *testing.T, m dnsPolicyModel) tfsdk.Plan {
 func dnspState(t *testing.T, m dnsPolicyModel) tfsdk.State {
 	t.Helper()
 	p := dnspPlan(t, m)
-	return tfsdk.State{Schema: p.Schema, Raw: p.Raw}
+	return tfsdk.State(p)
 }
 
 // dnspBadRaw is a raw value that cannot decode into dnsPolicyModel.
@@ -517,7 +517,7 @@ func TestDNSPolicyImportState(t *testing.T) {
 	id := uuid.New()
 	r := NewDNSPolicyResource().(*dnsPolicyResource)
 	p := dnspSchema(t)
-	resp := resource.ImportStateResponse{State: tfsdk.State{Schema: p.Schema, Raw: p.Raw}}
+	resp := resource.ImportStateResponse{State: tfsdk.State(p)}
 	r.ImportState(ctx, resource.ImportStateRequest{ID: id.String()}, &resp)
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("import diagnostics: %v", resp.Diagnostics)

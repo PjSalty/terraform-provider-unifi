@@ -52,7 +52,7 @@ func wbRes(t *testing.T, wc *official.WifiBroadcastsClientMock, opts ...testutil
 func wbPlanOf(t *testing.T, m wifiBroadcastModel) tfsdk.Plan {
 	t.Helper()
 	shell := wbSchemaShell(t)
-	p := tfsdk.Plan{Schema: shell.Schema, Raw: shell.Raw}
+	p := tfsdk.Plan(shell)
 	if diags := p.Set(context.Background(), m); diags.HasError() {
 		t.Fatalf("plan set: %v", diags)
 	}
@@ -179,7 +179,7 @@ func TestWifiBroadcastCreate(t *testing.T) {
 		r := wbRes(t, &official.WifiBroadcastsClientMock{})
 		shell := wbSchemaShell(t)
 		resp := resource.CreateResponse{State: wbSchemaShell(t)}
-		r.Create(context.Background(), resource.CreateRequest{Plan: tfsdk.Plan{Schema: shell.Schema, Raw: shell.Raw}}, &resp)
+		r.Create(context.Background(), resource.CreateRequest{Plan: tfsdk.Plan(shell)}, &resp)
 		if !resp.Diagnostics.HasError() {
 			t.Fatal("expected diagnostics for null plan")
 		}
@@ -360,7 +360,7 @@ func TestWifiBroadcastUpdate(t *testing.T) {
 		r := wbRes(t, &official.WifiBroadcastsClientMock{})
 		shell := wbSchemaShell(t)
 		resp := resource.UpdateResponse{State: wbSchemaShell(t)}
-		r.Update(context.Background(), resource.UpdateRequest{Plan: tfsdk.Plan{Schema: shell.Schema, Raw: shell.Raw}}, &resp)
+		r.Update(context.Background(), resource.UpdateRequest{Plan: tfsdk.Plan(shell)}, &resp)
 		if !resp.Diagnostics.HasError() {
 			t.Fatal("expected diagnostics for null plan")
 		}

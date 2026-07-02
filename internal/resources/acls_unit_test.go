@@ -49,7 +49,7 @@ func aclPlan(t *testing.T, m aclRuleModel) tfsdk.Plan {
 func aclState(t *testing.T, m aclRuleModel) tfsdk.State {
 	t.Helper()
 	p := aclPlan(t, m)
-	return tfsdk.State{Schema: p.Schema, Raw: p.Raw}
+	return tfsdk.State(p)
 }
 
 // aclBadRaw is a raw value that cannot decode into aclRuleModel, forcing the
@@ -538,7 +538,7 @@ func TestACLRuleImportState(t *testing.T) {
 	id := uuid.New()
 	r := NewACLRuleResource().(*aclRuleResource)
 	p := aclSchema(t)
-	resp := resource.ImportStateResponse{State: tfsdk.State{Schema: p.Schema, Raw: p.Raw}}
+	resp := resource.ImportStateResponse{State: tfsdk.State(p)}
 	r.ImportState(ctx, resource.ImportStateRequest{ID: id.String()}, &resp)
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("import diagnostics: %v", resp.Diagnostics)

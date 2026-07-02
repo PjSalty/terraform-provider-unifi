@@ -330,7 +330,7 @@ func TestNetworkUpdate(t *testing.T) {
 		r := netRes(t, &official.NetworksClientMock{})
 		shell := netSchemaForTest(t)
 		resp := resource.UpdateResponse{State: netSchemaForTest(t)}
-		r.Update(context.Background(), resource.UpdateRequest{Plan: tfsdk.Plan{Schema: shell.Schema, Raw: shell.Raw}}, &resp)
+		r.Update(context.Background(), resource.UpdateRequest{Plan: tfsdk.Plan(shell)}, &resp)
 		if !resp.Diagnostics.HasError() {
 			t.Fatal("expected diagnostics for null plan")
 		}
