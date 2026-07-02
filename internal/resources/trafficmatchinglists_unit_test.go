@@ -53,7 +53,7 @@ func tmlResource(t *testing.T, tm *official.TrafficMatchingListsClientMock, opts
 func tmlBuildPlan(t *testing.T, m trafficMatchingListModel) tfsdk.Plan {
 	t.Helper()
 	empty := tmlSchema(t)
-	p := tfsdk.Plan{Schema: empty.Schema, Raw: empty.Raw}
+	p := tfsdk.Plan(empty)
 	if d := p.Set(context.Background(), &m); d.HasError() {
 		t.Fatalf("building plan: %v", d)
 	}
