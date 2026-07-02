@@ -64,7 +64,7 @@ func netRes(t *testing.T, nc *official.NetworksClientMock, opts ...testutil.Opt)
 func netPlanOf(t *testing.T, m networkModel) tfsdk.Plan {
 	t.Helper()
 	shell := netSchemaForTest(t)
-	p := tfsdk.Plan{Schema: shell.Schema, Raw: shell.Raw}
+	p := tfsdk.Plan(shell)
 	if diags := p.Set(context.Background(), m); diags.HasError() {
 		t.Fatalf("plan set: %v", diags)
 	}
@@ -161,7 +161,7 @@ func TestNetworkCreate(t *testing.T) {
 		// A null plan cannot be reified into the model struct.
 		shell := netSchemaForTest(t)
 		resp := resource.CreateResponse{State: netSchemaForTest(t)}
-		r.Create(context.Background(), resource.CreateRequest{Plan: tfsdk.Plan{Schema: shell.Schema, Raw: shell.Raw}}, &resp)
+		r.Create(context.Background(), resource.CreateRequest{Plan: tfsdk.Plan(shell)}, &resp)
 		if !resp.Diagnostics.HasError() {
 			t.Fatal("expected diagnostics for null plan")
 		}

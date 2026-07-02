@@ -56,7 +56,7 @@ func fzResource(t *testing.T, fw *official.FirewallClientMock, opts ...testutil.
 func fzPlan(t *testing.T, m firewallZoneModel) tfsdk.Plan {
 	t.Helper()
 	empty := fzSchema(t)
-	p := tfsdk.Plan{Schema: empty.Schema, Raw: empty.Raw}
+	p := tfsdk.Plan(empty)
 	if d := p.Set(context.Background(), &m); d.HasError() {
 		t.Fatalf("building plan: %v", d)
 	}

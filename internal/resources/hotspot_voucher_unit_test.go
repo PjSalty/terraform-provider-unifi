@@ -54,7 +54,7 @@ func hvResource(t *testing.T, hs *official.HotspotClientMock, opts ...testutil.O
 func hvPlan(t *testing.T, m hotspotVoucherModel) tfsdk.Plan {
 	t.Helper()
 	empty := hvSchema(t)
-	p := tfsdk.Plan{Schema: empty.Schema, Raw: empty.Raw}
+	p := tfsdk.Plan(empty)
 	if d := p.Set(context.Background(), &m); d.HasError() {
 		t.Fatalf("building plan: %v", d)
 	}
