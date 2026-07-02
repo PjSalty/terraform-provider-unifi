@@ -159,13 +159,26 @@ func (p *UniFiProvider) Resources(_ context.Context) []func() resource.Resource 
 		resources.NewTrafficMatchingListResource,
 		resources.NewHotspotVoucherResource,
 		resources.NewFirewallZoneResource,
+		resources.NewFirewallPolicyResource,
 	}
 }
 
+// DataSources returns the read-only lookups: adopted devices/clients plus the
+// reference sources (sites, networks, firewall zones, RADIUS profiles, WANs,
+// device tags, DPI apps/categories) that resolve names to the UUIDs the
+// resources reference.
 func (p *UniFiProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		datasources.NewDevicesDataSource,
 		datasources.NewClientsDataSource,
+		datasources.NewSitesDataSource,
+		datasources.NewNetworksDataSource,
+		datasources.NewFirewallZonesDataSource,
+		datasources.NewRadiusProfilesDataSource,
+		datasources.NewWansDataSource,
+		datasources.NewDeviceTagsDataSource,
+		datasources.NewDPIApplicationsDataSource,
+		datasources.NewDpiApplicationCategoriesDataSource,
 	}
 }
 

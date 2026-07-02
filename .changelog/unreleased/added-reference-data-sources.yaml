@@ -1,0 +1,3 @@
+kind: Added
+body: 'Eight read-only reference data sources that resolve names to the UUIDs resources need: `unifi_sites`, `unifi_networks`, `unifi_firewall_zones` (surfaces SYSTEM-defined zones that no resource can create), `unifi_radius_profiles`, `unifi_wans`, `unifi_device_tags`, `unifi_dpi_applications`, and `unifi_dpi_application_categories`.'
+time: 2026-07-02T06:28:02.000000000Z

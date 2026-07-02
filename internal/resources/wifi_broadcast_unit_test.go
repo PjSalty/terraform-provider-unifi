@@ -87,17 +87,18 @@ func wbToMap(t *testing.T, body any) map[string]any {
 // wbModel returns a fully-populated valid model with the given id.
 func wbModel(id types.String) wifiBroadcastModel {
 	return wifiBroadcastModel{
-		ID:              id,
-		Name:            types.StringValue("guest-wifi"),
-		Enabled:         types.BoolValue(true),
-		HideName:        types.BoolValue(false),
-		Security:        types.StringValue("WPA2_PERSONAL"),
-		Passphrase:      types.StringValue("test-passphrase"),
-		PmfMode:         types.StringNull(),
-		Frequencies:     types.SetValueMust(types.StringType, []attr.Value{types.StringValue("5")}),
-		NetworkID:       types.StringNull(),
-		DeviceFilter:    types.SetNull(types.StringType),
-		ClientIsolation: types.BoolValue(false),
+		ID:               id,
+		Name:             types.StringValue("guest-wifi"),
+		Enabled:          types.BoolValue(true),
+		HideName:         types.BoolValue(false),
+		Security:         types.StringValue("WPA2_PERSONAL"),
+		Passphrase:       types.StringValue("test-passphrase"),
+		PmfMode:          types.StringNull(),
+		Frequencies:      types.SetValueMust(types.StringType, []attr.Value{types.StringValue("5")}),
+		NetworkID:        types.StringNull(),
+		DeviceFilter:     types.SetNull(types.StringType),
+		ClientIsolation:  types.BoolValue(false),
+		ClientFilterMacs: types.SetNull(types.StringType),
 	}
 }
 
@@ -118,7 +119,8 @@ func TestWifiBroadcastSchema(t *testing.T) {
 	for _, a := range []string{
 		"id", "name", "enabled", "hide_name", "security", "passphrase", "pmf_mode",
 		"broadcasting_frequencies_ghz", "network_id", "broadcasting_device_filter",
-		"client_isolation_enabled",
+		"client_isolation_enabled", "multicast_to_unicast_conversion_enabled",
+		"uapsd_enabled", "client_filter_action", "client_filter_mac_addresses",
 	} {
 		if _, ok := resp.Schema.Attributes[a]; !ok {
 			t.Errorf("schema missing %s attribute", a)
@@ -597,6 +599,62 @@ func TestExpandWifiBroadcastAllBands(t *testing.T) {
 	if !ok || len(bands) != 3 {
 		t.Fatalf("broadcastingFrequenciesGHz = %v, want 3 bands", got["broadcastingFrequenciesGHz"])
 	}
+}
+
+// TestExpandWifiBroadcastToggles proves the two plain-bool QoL fields ride into
+// the body as top-level keys.
+func TestExpandWifiBroadcastToggles(t *testing.T) {
+	m := wbModel(types.StringNull())
+	m.MulticastToUnicast = types.BoolValue(true)
+	m.UapsdEnabled = types.BoolValue(true)
+	body, diags := expandWifiBroadcast(context.Background(), m)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+	got := wbToMap(t, body)
+	if got["multicastToUnicastConversionEnabled"] != true {
+		t.Errorf("multicastToUnicastConversionEnabled = %v, want true", got["multicastToUnicastConversionEnabled"])
+	}
+	if got["uapsdEnabled"] != true {
+		t.Errorf("uapsdEnabled = %v, want true", got["uapsdEnabled"])
+	}
+}
+
+// TestExpandWifiBroadcastClientFilter proves the MAC allow/deny list builds the
+// clientFilteringPolicy object, and that MACs without an action are rejected.
+func TestExpandWifiBroadcastClientFilter(t *testing.T) {
+	t.Run("allow list builds the policy", func(t *testing.T) {
+		m := wbModel(types.StringNull())
+		m.ClientFilterAction = types.StringValue("ALLOW")
+		m.ClientFilterMacs = types.SetValueMust(types.StringType, []attr.Value{
+			types.StringValue("aa:bb:cc:dd:ee:ff"), types.StringValue("11:22:33:44:55:66"),
+		})
+		body, diags := expandWifiBroadcast(context.Background(), m)
+		if diags.HasError() {
+			t.Fatalf("unexpected diagnostics: %v", diags)
+		}
+		got := wbToMap(t, body)
+		pol, ok := got["clientFilteringPolicy"].(map[string]any)
+		if !ok {
+			t.Fatalf("clientFilteringPolicy not an object: %v", got["clientFilteringPolicy"])
+		}
+		if pol["action"] != "ALLOW" {
+			t.Errorf("action = %v, want ALLOW", pol["action"])
+		}
+		macs, ok := pol["macAddressFilter"].([]any)
+		if !ok || len(macs) != 2 {
+			t.Errorf("macAddressFilter = %v, want 2 entries", pol["macAddressFilter"])
+		}
+	})
+
+	t.Run("macs without action error", func(t *testing.T) {
+		m := wbModel(types.StringNull())
+		m.ClientFilterMacs = types.SetValueMust(types.StringType, []attr.Value{types.StringValue("aa:bb:cc:dd:ee:ff")})
+		_, diags := expandWifiBroadcast(context.Background(), m)
+		if !netDiagsContain(diags, "requires client_filter_action") {
+			t.Fatalf("expected macs-without-action diagnostic, got: %v", diags)
+		}
+	})
 }
 
 func TestExpandSecurityWPA3(t *testing.T) {

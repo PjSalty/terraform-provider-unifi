@@ -50,6 +50,11 @@ type wifiBroadcastModel struct {
 	NetworkID       types.String `tfsdk:"network_id"`
 	DeviceFilter    types.Set    `tfsdk:"broadcasting_device_filter"`
 	ClientIsolation types.Bool   `tfsdk:"client_isolation_enabled"`
+
+	MulticastToUnicast types.Bool   `tfsdk:"multicast_to_unicast_conversion_enabled"`
+	UapsdEnabled       types.Bool   `tfsdk:"uapsd_enabled"`
+	ClientFilterAction types.String `tfsdk:"client_filter_action"`
+	ClientFilterMacs   types.Set    `tfsdk:"client_filter_mac_addresses"`
 }
 
 func (r *wifiBroadcastResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -117,6 +122,34 @@ func (r *wifiBroadcastResource) Schema(_ context.Context, _ resource.SchemaReque
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),
 				Description: "Prevent clients on this SSID from reaching each other.",
+			},
+			"multicast_to_unicast_conversion_enabled": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				Description: "Multicast Enhancement (IGMPv3): convert multicast frames to unicast so " +
+					"streaming/discovery traffic (Chromecast, AirPlay, mDNS) is delivered reliably over " +
+					"WiFi instead of at the slow multicast basic rate.",
+			},
+			"uapsd_enabled": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				Description: "Unscheduled Automatic Power Save Delivery (U-APSD / WMM power save) for " +
+					"battery clients. Can add latency on some devices, so it defaults off.",
+			},
+			"client_filter_action": schema.StringAttribute{
+				Optional: true,
+				Description: "Per-SSID MAC filtering mode: ALLOW (only client_filter_mac_addresses may " +
+					"join) or BLOCK (those MACs are denied). Omit to disable MAC filtering. Requires " +
+					"client_filter_mac_addresses.",
+				Validators: []validator.String{stringvalidator.OneOf("ALLOW", "BLOCK")},
+			},
+			"client_filter_mac_addresses": schema.SetAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "MAC addresses the client_filter_action applies to (max 512). Lock a hardened " +
+					"IoT SSID to a known device allowlist.",
 			},
 		},
 	}
@@ -188,6 +221,10 @@ func (r *wifiBroadcastResource) Read(ctx context.Context, req resource.ReadReque
 	state.Enabled = types.BoolValue(got.Enabled)
 	state.HideName = types.BoolValue(got.HideName)
 	state.ClientIsolation = types.BoolValue(got.ClientIsolationEnabled)
+	// These two are plain top-level bools on the read model, so unlike the union
+	// fields they refresh reliably for drift detection.
+	state.MulticastToUnicast = types.BoolValue(got.MulticastToUnicastConversionEnabled)
+	state.UapsdEnabled = types.BoolValue(got.UapsdEnabled)
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
@@ -253,12 +290,31 @@ func expandWifiBroadcast(ctx context.Context, m wifiBroadcastModel) (official.Wi
 	diags.Append(secDiags...)
 
 	body := official.WifiBroadcastCreateOrUpdate{
-		Name:                   m.Name.ValueString(),
-		Enabled:                m.Enabled.ValueBool(),
-		HideName:               m.HideName.ValueBool(),
-		ClientIsolationEnabled: m.ClientIsolation.ValueBool(),
-		SecurityConfiguration:  sec,
-		Type:                   "STANDARD",
+		Name:                                m.Name.ValueString(),
+		Enabled:                             m.Enabled.ValueBool(),
+		HideName:                            m.HideName.ValueBool(),
+		ClientIsolationEnabled:              m.ClientIsolation.ValueBool(),
+		MulticastToUnicastConversionEnabled: m.MulticastToUnicast.ValueBool(),
+		UapsdEnabled:                        m.UapsdEnabled.ValueBool(),
+		SecurityConfiguration:               sec,
+		Type:                                "STANDARD",
+	}
+
+	// MAC allow/deny list for the SSID (WifiClientFilteringPolicy is a plain
+	// struct, no union). Built only when an action is set; MACs without an
+	// action are a config error.
+	if !m.ClientFilterAction.IsNull() && m.ClientFilterAction.ValueString() != "" {
+		var macs []string
+		if !m.ClientFilterMacs.IsNull() && !m.ClientFilterMacs.IsUnknown() {
+			diags.Append(m.ClientFilterMacs.ElementsAs(ctx, &macs, false)...)
+		}
+		body.ClientFilteringPolicy = &official.WifiClientFilteringPolicy{
+			Action:           official.WifiClientFilteringPolicyAction(m.ClientFilterAction.ValueString()),
+			MacAddressFilter: macs,
+		}
+	} else if !m.ClientFilterMacs.IsNull() && len(m.ClientFilterMacs.Elements()) > 0 {
+		diags.AddError("client_filter_mac_addresses requires client_filter_action",
+			"Set client_filter_action to ALLOW or BLOCK when listing MAC addresses.")
 	}
 
 	if !m.NetworkID.IsNull() && m.NetworkID.ValueString() != "" {
