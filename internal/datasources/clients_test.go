@@ -27,7 +27,7 @@ func TestFlattenClientWired(t *testing.T) {
 		"type": "WIRED",
 		"id": "11111111-1111-1111-1111-111111111111",
 		"name": "nas",
-		"ipAddress": "10.10.40.10",
+		"ipAddress": "192.0.2.10",
 		"connectedAt": "2026-06-24T12:00:00Z",
 		"access": {"type": "DEFAULT"},
 		"macAddress": "aa:bb:cc:dd:ee:ff",
@@ -47,8 +47,8 @@ func TestFlattenClientWired(t *testing.T) {
 	if got := m.UplinkDeviceID.ValueString(); got != "22222222-2222-2222-2222-222222222222" {
 		t.Errorf("uplink_device_id = %q, want 22222222-...", got)
 	}
-	if got := m.IPAddress.ValueString(); got != "10.10.40.10" {
-		t.Errorf("ip_address = %q, want 10.10.40.10", got)
+	if got := m.IPAddress.ValueString(); got != "192.0.2.10" {
+		t.Errorf("ip_address = %q, want 192.0.2.10", got)
 	}
 	if got := m.ConnectedAt.ValueString(); got != "2026-06-24T12:00:00Z" {
 		t.Errorf("connected_at = %q, want 2026-06-24T12:00:00Z", got)
@@ -61,7 +61,7 @@ func TestFlattenClientWireless(t *testing.T) {
 		"type": "WIRELESS",
 		"id": "33333333-3333-3333-3333-333333333333",
 		"name": "phone",
-		"ipAddress": "10.10.50.20",
+		"ipAddress": "198.51.100.20",
 		"access": {"type": "GUEST"},
 		"macAddress": "11:22:33:44:55:66",
 		"uplinkDeviceId": "44444444-4444-4444-4444-444444444444"

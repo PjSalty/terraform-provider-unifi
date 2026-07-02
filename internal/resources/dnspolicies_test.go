@@ -34,7 +34,7 @@ func TestExpandDNSPolicyARecord(t *testing.T) {
 		Type:        types.StringValue("A_RECORD"),
 		Enabled:     types.BoolValue(true),
 		Domain:      types.StringValue("host.example.com"),
-		IPv4Address: types.StringValue("10.10.20.5"),
+		IPv4Address: types.StringValue("192.0.2.5"),
 		TTLSeconds:  types.Int64Value(3600),
 	})
 
@@ -47,8 +47,8 @@ func TestExpandDNSPolicyARecord(t *testing.T) {
 	if got["domain"] != "host.example.com" {
 		t.Errorf("domain = %v, want host.example.com", got["domain"])
 	}
-	if got["ipv4Address"] != "10.10.20.5" {
-		t.Errorf("ipv4Address = %v, want 10.10.20.5", got["ipv4Address"])
+	if got["ipv4Address"] != "192.0.2.5" {
+		t.Errorf("ipv4Address = %v, want 192.0.2.5", got["ipv4Address"])
 	}
 	if got["ttlSeconds"] != float64(3600) {
 		t.Errorf("ttlSeconds = %v, want 3600", got["ttlSeconds"])
@@ -111,14 +111,14 @@ func TestExpandDNSPolicyForwardDomain(t *testing.T) {
 		Type:      types.StringValue("FORWARD_DOMAIN"),
 		Enabled:   types.BoolValue(true),
 		Domain:    types.StringValue("internal.example.com"),
-		IPAddress: types.StringValue("10.10.20.13"),
+		IPAddress: types.StringValue("192.0.2.13"),
 	})
 
 	if got["type"] != "FORWARD_DOMAIN" {
 		t.Errorf("type = %v, want FORWARD_DOMAIN", got["type"])
 	}
-	if got["ipAddress"] != "10.10.20.13" {
-		t.Errorf("ipAddress = %v, want 10.10.20.13", got["ipAddress"])
+	if got["ipAddress"] != "192.0.2.13" {
+		t.Errorf("ipAddress = %v, want 192.0.2.13", got["ipAddress"])
 	}
 }
 

@@ -16,7 +16,7 @@ func TestExpandTrafficMatchingListIPv4(t *testing.T) {
 		Type: types.StringValue("IPV4_ADDRESSES"),
 		Items: []trafficMatchingListItemModel{
 			{MatchType: types.StringValue("IP_ADDRESS"), Value: types.StringValue("10.0.0.5")},
-			{MatchType: types.StringValue("SUBNET"), Value: types.StringValue("192.168.0.0/24")},
+			{MatchType: types.StringValue("SUBNET"), Value: types.StringValue("203.0.113.0/24")},
 			{MatchType: types.StringValue("IP_ADDRESS_RANGE"), Start: types.StringValue("10.0.0.1"), Stop: types.StringValue("10.0.0.9")},
 		},
 	}
@@ -38,8 +38,8 @@ func TestExpandTrafficMatchingListIPv4(t *testing.T) {
 		t.Errorf("item[0] = %v, want IP_ADDRESS 10.0.0.5", addr)
 	}
 	subnet := items[1].(map[string]any)
-	if subnet["type"] != "SUBNET" || subnet["value"] != "192.168.0.0/24" {
-		t.Errorf("item[1] = %v, want SUBNET 192.168.0.0/24", subnet)
+	if subnet["type"] != "SUBNET" || subnet["value"] != "203.0.113.0/24" {
+		t.Errorf("item[1] = %v, want SUBNET 203.0.113.0/24", subnet)
 	}
 	rng := items[2].(map[string]any)
 	if rng["type"] != "IP_ADDRESS_RANGE" || rng["start"] != "10.0.0.1" || rng["stop"] != "10.0.0.9" {

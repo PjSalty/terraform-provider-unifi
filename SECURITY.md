@@ -19,10 +19,16 @@ itself or in `go-unifi` (report those upstream).
 
 ## Release verification
 
-Release artifacts are signed. Verify the checksums signature with the project GPG
-key before use:
+Release artifacts are signed. The signing key is published at
+[`docs/gpg-public-key.asc`](docs/gpg-public-key.asc) and is also registered
+with the Terraform Registry. Verify the checksums signature before use:
 
 ```bash
+# Import the signing key
+gpg --import docs/gpg-public-key.asc
+# Confirm the fingerprint
+gpg --fingerprint releases@saltstice.com
+
 gpg --verify terraform-provider-unifi_<version>_SHA256SUMS.sig \
             terraform-provider-unifi_<version>_SHA256SUMS
 sha256sum -c terraform-provider-unifi_<version>_SHA256SUMS

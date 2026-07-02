@@ -14,7 +14,7 @@ import (
 // present), not be lost to an empty union.
 func TestExpandNetworkMarshalsUnmanaged(t *testing.T) {
 	body := expandNetwork(networkModel{
-		Name:    types.StringValue("Remote-IoT"),
+		Name:    types.StringValue("IoT Devices"),
 		VlanID:  types.Int64Value(81),
 		Enabled: types.BoolValue(true),
 	})
@@ -26,8 +26,8 @@ func TestExpandNetworkMarshalsUnmanaged(t *testing.T) {
 	if err := json.Unmarshal(b, &got); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if got["name"] != "Remote-IoT" {
-		t.Errorf("name = %v, want Remote-IoT", got["name"])
+	if got["name"] != "IoT Devices" {
+		t.Errorf("name = %v, want IoT Devices", got["name"])
 	}
 	if got["management"] != "UNMANAGED" {
 		t.Errorf("management = %v, want UNMANAGED", got["management"])

@@ -6,6 +6,8 @@ batched from `.changelog/unreleased/` by changie.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-01
+
 ### Added
 
 - Provider scaffolding on the terraform-plugin-framework: provider configuration

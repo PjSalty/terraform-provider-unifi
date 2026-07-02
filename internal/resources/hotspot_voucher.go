@@ -52,7 +52,7 @@ type hotspotVoucherResource struct {
 type hotspotVoucherModel struct {
 	ID                   types.String `tfsdk:"id"`
 	Name                 types.String `tfsdk:"name"`
-	Count                types.Int32  `tfsdk:"count"`
+	Count                types.Int32  `tfsdk:"quantity"`
 	TimeLimitMinutes     types.Int64  `tfsdk:"time_limit_minutes"`
 	AuthorizedGuestLimit types.Int64  `tfsdk:"authorized_guest_limit"`
 	DataUsageLimitMBytes types.Int64  `tfsdk:"data_usage_limit_mbytes"`
@@ -97,7 +97,7 @@ func (r *hotspotVoucherResource) Schema(_ context.Context, _ resource.SchemaRequ
 				Description:   "Voucher note, duplicated across all generated vouchers.",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
-			"count": schema.Int32Attribute{
+			"quantity": schema.Int32Attribute{
 				Optional:      true,
 				Computed:      true,
 				Default:       int32default.StaticInt32(1),

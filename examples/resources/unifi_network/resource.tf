@@ -1,6 +1,6 @@
 # A VLAN-only network (an 802.1Q tag) for an IoT segment.
-resource "unifi_network" "remote_iot" {
-  name    = "Remote-IoT"
-  vlan_id = 81
+resource "unifi_network" "iot" {
+  name    = "IoT Devices"
+  vlan_id = 20
   enabled = true
 }

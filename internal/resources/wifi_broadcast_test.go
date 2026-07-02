@@ -20,7 +20,7 @@ func TestExpandWifiBroadcastWPA2(t *testing.T) {
 		types.StringValue("2.4"), types.StringValue("5"),
 	})
 	model := wifiBroadcastModel{
-		Name:            types.StringValue("Byte me IoT"),
+		Name:            types.StringValue("IoT Devices"),
 		Enabled:         types.BoolValue(true),
 		HideName:        types.BoolValue(false),
 		Security:        types.StringValue("WPA2_PERSONAL"),
@@ -45,8 +45,8 @@ func TestExpandWifiBroadcastWPA2(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	if got["name"] != "Byte me IoT" {
-		t.Errorf("name = %v, want Byte me IoT", got["name"])
+	if got["name"] != "IoT Devices" {
+		t.Errorf("name = %v, want IoT Devices", got["name"])
 	}
 	if got["type"] != "STANDARD" {
 		t.Errorf("type = %v, want STANDARD", got["type"])

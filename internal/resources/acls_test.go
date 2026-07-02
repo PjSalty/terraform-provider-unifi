@@ -28,7 +28,7 @@ func TestExpandACLRuleIPV4(t *testing.T) {
 		NetworkIDFilter: types.StringNull(),
 		SourceFilter: &aclRuleEndpointModel{
 			IPAddressesOrSubnets: types.ListValueMust(types.StringType, []attr.Value{
-				types.StringValue("10.10.50.0/24"),
+				types.StringValue("192.0.2.0/24"),
 			}),
 			Ports:        types.ListNull(types.Int64Type),
 			MACAddresses: types.ListNull(types.StringType),
@@ -36,7 +36,7 @@ func TestExpandACLRuleIPV4(t *testing.T) {
 		},
 		DestinationFilter: &aclRuleEndpointModel{
 			IPAddressesOrSubnets: types.ListValueMust(types.StringType, []attr.Value{
-				types.StringValue("10.10.20.0/24"),
+				types.StringValue("198.51.100.0/24"),
 			}),
 			Ports: types.ListValueMust(types.Int64Type, []attr.Value{
 				types.Int64Value(443),
@@ -81,8 +81,8 @@ func TestExpandACLRuleIPV4(t *testing.T) {
 		t.Errorf("sourceFilter.type = %v, want IP_ADDRESSES_OR_SUBNETS", src["type"])
 	}
 	subnets, ok := src["ipAddressesOrSubnets"].([]any)
-	if !ok || len(subnets) != 1 || subnets[0] != "10.10.50.0/24" {
-		t.Errorf("sourceFilter.ipAddressesOrSubnets = %v, want [10.10.50.0/24]", src["ipAddressesOrSubnets"])
+	if !ok || len(subnets) != 1 || subnets[0] != "192.0.2.0/24" {
+		t.Errorf("sourceFilter.ipAddressesOrSubnets = %v, want [192.0.2.0/24]", src["ipAddressesOrSubnets"])
 	}
 
 	dst, ok := got["destinationFilter"].(map[string]any)
