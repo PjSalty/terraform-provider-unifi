@@ -179,6 +179,7 @@ func (p *UniFiProvider) DataSources(_ context.Context) []func() datasource.DataS
 		datasources.NewDeviceTagsDataSource,
 		datasources.NewDPIApplicationsDataSource,
 		datasources.NewDpiApplicationCategoriesDataSource,
+		datasources.NewWifiBroadcastsDataSource,
 	}
 }
 

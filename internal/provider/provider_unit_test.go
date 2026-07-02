@@ -279,8 +279,8 @@ func TestResourcesAndDataSources(t *testing.T) {
 		}
 	}
 	ds := p.DataSources(context.Background())
-	if len(ds) != 10 {
-		t.Errorf("data sources = %d, want 10", len(ds))
+	if len(ds) != 11 {
+		t.Errorf("data sources = %d, want 11", len(ds))
 	}
 	for i, f := range ds {
 		if f() == nil {
