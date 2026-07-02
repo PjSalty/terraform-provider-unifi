@@ -72,6 +72,11 @@ linters:
           - godot
           - prealloc
           - unparam
+          # contextcheck in tests flags schema/state-building helpers
+          # for not threading the test's ctx into Schema() calls that
+          # ignore it anyway. Test helpers use context.Background()
+          # deliberately; threading ctx adds churn, not correctness.
+          - contextcheck
           # Phase H: gosec in tests is dominated by false positives -
           # G304 (os.ReadFile with a glob-sourced variable), G306
           # (0644 file perms on scratch test files), G117 (test
