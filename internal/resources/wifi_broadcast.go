@@ -55,6 +55,12 @@ type wifiBroadcastModel struct {
 	UapsdEnabled       types.Bool   `tfsdk:"uapsd_enabled"`
 	ClientFilterAction types.String `tfsdk:"client_filter_action"`
 	ClientFilterMacs   types.Set    `tfsdk:"client_filter_mac_addresses"`
+
+	// The Integration API rejects any SSID write when these three are null, so
+	// they are Computed with UniFi-default values and always sent on the wire.
+	BssTransition       types.Bool `tfsdk:"bss_transition_enabled"`
+	ArpProxy            types.Bool `tfsdk:"arp_proxy_enabled"`
+	AdvertiseDeviceName types.Bool `tfsdk:"advertise_device_name"`
 }
 
 func (r *wifiBroadcastResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -151,6 +157,29 @@ func (r *wifiBroadcastResource) Schema(_ context.Context, _ resource.SchemaReque
 				Description: "MAC addresses the client_filter_action applies to (max 512). Lock a hardened " +
 					"IoT SSID to a known device allowlist.",
 			},
+			"bss_transition_enabled": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(true),
+				Description: "802.11v BSS Transition Management: steer a client toward a better AP for " +
+					"seamless roaming across multiple APs. The controller requires this field on every " +
+					"write, so it defaults on (matching the UniFi default).",
+			},
+			"arp_proxy_enabled": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				Description: "Proxy ARP: the AP answers ARP requests on behalf of clients to cut broadcast " +
+					"traffic. The controller requires this field on every write, so it defaults off " +
+					"(matching the UniFi default).",
+			},
+			"advertise_device_name": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				Description: "Advertise the AP device name in beacon frames. The controller requires this " +
+					"field on every write, so it defaults off (matching the UniFi default).",
+			},
 		},
 	}
 }
@@ -212,11 +241,12 @@ func (r *wifiBroadcastResource) Read(ctx context.Context, req resource.ReadReque
 		resp.Diagnostics.AddError("Failed to read SSID", err.Error())
 		return
 	}
-	// Refresh the reliably-returned top-level fields. shortcut: the nested-union
-	// fields (security, passphrase, frequencies, network_id, device_filter) stay
-	// from prior state. passphrase is write-only on the API; full union round-trip
-	// refresh of the others is added with the acceptance tests (Step 6) against a
-	// live controller, where the As* navigation can be verified.
+	// Refresh the reliably-returned top-level fields. shortcut: the remaining
+	// nested-union fields (security, passphrase, frequencies, network_id,
+	// device_filter) stay from prior state. passphrase is write-only on the API;
+	// full union round-trip refresh of the others is added with the acceptance
+	// tests (Step 6) against a live controller. The three controller-required
+	// bools below already round-trip via AsStandardWifiBroadcastDetail.
 	state.Name = types.StringValue(got.Name)
 	state.Enabled = types.BoolValue(got.Enabled)
 	state.HideName = types.BoolValue(got.HideName)
@@ -225,6 +255,20 @@ func (r *wifiBroadcastResource) Read(ctx context.Context, req resource.ReadReque
 	// fields they refresh reliably for drift detection.
 	state.MulticastToUnicast = types.BoolValue(got.MulticastToUnicastConversionEnabled)
 	state.UapsdEnabled = types.BoolValue(got.UapsdEnabled)
+	// The three controller-required bools live only on the STANDARD read variant,
+	// so navigate the read union to refresh them for drift detection. A non-STANDARD
+	// SSID or an unpopulated variant leaves the prior state untouched.
+	if std, err := got.AsStandardWifiBroadcastDetail(); err == nil {
+		if std.BssTransitionEnabled != nil {
+			state.BssTransition = types.BoolValue(*std.BssTransitionEnabled)
+		}
+		if std.ArpProxyEnabled != nil {
+			state.ArpProxy = types.BoolValue(*std.ArpProxyEnabled)
+		}
+		if std.AdvertiseDeviceName != nil {
+			state.AdvertiseDeviceName = types.BoolValue(*std.AdvertiseDeviceName)
+		}
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
@@ -343,6 +387,12 @@ func expandWifiBroadcast(ctx context.Context, m wifiBroadcastModel) (official.Wi
 	// The band list lives only on the STANDARD variant, so it rides the union;
 	// the named fields above override the union for everything they also carry.
 	std := official.StandardWifiBroadcastCreateUpdate{Type: "STANDARD"}
+	// The controller rejects a write when any of these three is null. They are
+	// Computed with UniFi-default values, so after plan resolution ValueBoolPointer
+	// is always non-nil; sending them unconditionally is what makes writes succeed.
+	std.BssTransitionEnabled = m.BssTransition.ValueBoolPointer()
+	std.ArpProxyEnabled = m.ArpProxy.ValueBoolPointer()
+	std.AdvertiseDeviceName = m.AdvertiseDeviceName.ValueBoolPointer()
 	if freqs := setToFrequencies(ctx, m.Frequencies, &diags); len(freqs) > 0 {
 		std.BroadcastingFrequenciesGHz = &freqs
 	}

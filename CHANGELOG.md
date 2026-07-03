@@ -6,6 +6,23 @@ batched from `.changelog/unreleased/` by changie.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-07-02
+
+### Fixed
+
+- `unifi_wifi_broadcast` create and update now succeed against the controller.
+  The Integration API rejects any SSID write whose `arpProxyEnabled`,
+  `advertiseDeviceName`, or `bssTransitionEnabled` is null (its union marshaler
+  emits these keys even when unset), so every create/update returned HTTP 400
+  "must not be null". The three are now modeled and always sent.
+
+### Added
+
+- `unifi_wifi_broadcast`: `bss_transition_enabled` (802.11v BSS Transition
+  Management, defaults on), `arp_proxy_enabled` (Proxy ARP, defaults off), and
+  `advertise_device_name` (defaults off). All Optional+Computed with the UniFi
+  defaults, and refreshed on Read from the STANDARD variant for drift detection.
+
 ## [0.3.1] - 2026-07-02
 
 ### Added

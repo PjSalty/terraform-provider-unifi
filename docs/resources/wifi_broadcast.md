@@ -45,8 +45,11 @@ resource "unifi_wifi_broadcast" "iot" {
 
 ### Optional
 
+- `advertise_device_name` (Boolean) Advertise the AP device name in beacon frames. The controller requires this field on every write, so it defaults off (matching the UniFi default).
+- `arp_proxy_enabled` (Boolean) Proxy ARP: the AP answers ARP requests on behalf of clients to cut broadcast traffic. The controller requires this field on every write, so it defaults off (matching the UniFi default).
 - `broadcasting_device_filter` (Set of String) UUIDs of the APs that broadcast this SSID. Omit to broadcast on all APs.
 - `broadcasting_frequencies_ghz` (Set of String) Frequency bands to advertise on: any of "2.4", "5", "6".
+- `bss_transition_enabled` (Boolean) 802.11v BSS Transition Management: steer a client toward a better AP for seamless roaming across multiple APs. The controller requires this field on every write, so it defaults on (matching the UniFi default).
 - `client_filter_action` (String) Per-SSID MAC filtering mode: ALLOW (only client_filter_mac_addresses may join) or BLOCK (those MACs are denied). Omit to disable MAC filtering. Requires client_filter_mac_addresses.
 - `client_filter_mac_addresses` (Set of String) MAC addresses the client_filter_action applies to (max 512). Lock a hardened IoT SSID to a known device allowlist.
 - `client_isolation_enabled` (Boolean) Prevent clients on this SSID from reaching each other.
