@@ -5,7 +5,8 @@ import "math"
 // safeInt32 narrows an int64 that schema validators have already
 // range-checked. The saturation guard is defense-in-depth: it makes the
 // conversion provably lossless to static analysis (gosec G115/G109) and
-// keeps behavior sane if a validator is ever bypassed.
+// keeps behavior sane if a validator is ever bypassed. Use it at every
+// int64-to-int32 boundary instead of a bare conversion.
 func safeInt32(v int64) int32 {
 	if v > math.MaxInt32 {
 		return math.MaxInt32

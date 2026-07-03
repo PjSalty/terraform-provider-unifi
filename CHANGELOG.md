@@ -6,6 +6,14 @@ batched from `.changelog/unreleased/` by changie.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-02
+
+### Added
+
+- `unifi_wifi_broadcasts` data source: lists every SSID (id, name, enabled,
+  type, origin) so an existing SSID's UUID can be resolved by name, e.g. to
+  drive `import` blocks without hand-hunting controller IDs.
+
 ## [0.3.0] - 2026-07-02
 
 ### Added
