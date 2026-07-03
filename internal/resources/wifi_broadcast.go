@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -388,6 +389,18 @@ func (r *wifiBroadcastResource) ImportState(ctx context.Context, req resource.Im
 // expandWifiBroadcast builds the create/update body. The top-level union's named
 // fields override the union in MarshalJSON, so we set them directly and use the
 // STANDARD variant only for the band list, which lives solely on the variant.
+// int64ToInt32 narrows a schema-validated int64 to the int32 the controller API
+// uses for the data-rate and DTIM fields. Callers pass values already bounded by
+// the resource's OneOf/Between validators; the explicit guard makes the
+// conversion provably overflow-free (satisfies gosec G115), since those
+// validators run too late for static analysis to see.
+func int64ToInt32(v int64) int32 {
+	if v < math.MinInt32 || v > math.MaxInt32 {
+		return 0
+	}
+	return int32(v)
+}
+
 func expandWifiBroadcast(ctx context.Context, m wifiBroadcastModel) (official.WifiBroadcastCreateOrUpdate, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
@@ -463,10 +476,10 @@ func expandWifiBroadcast(ctx context.Context, m wifiBroadcastModel) (official.Wi
 	if !m.MinRate2g.IsNull() || !m.MinRate5g.IsNull() {
 		dr := &official.WifiBasicDataRateConfiguration{}
 		if !m.MinRate2g.IsNull() {
-			dr.N24 = official.WifiBasicDataRateConfiguration24(m.MinRate2g.ValueInt64())
+			dr.N24 = official.WifiBasicDataRateConfiguration24(int64ToInt32(m.MinRate2g.ValueInt64()))
 		}
 		if !m.MinRate5g.IsNull() {
-			dr.N5 = official.WifiBasicDataRateConfiguration5(m.MinRate5g.ValueInt64())
+			dr.N5 = official.WifiBasicDataRateConfiguration5(int64ToInt32(m.MinRate5g.ValueInt64()))
 		}
 		std.BasicDataRateKbpsByFrequencyGHz = dr
 	}
@@ -474,13 +487,13 @@ func expandWifiBroadcast(ctx context.Context, m wifiBroadcastModel) (official.Wi
 	if !m.Dtim2g.IsNull() || !m.Dtim5g.IsNull() || !m.Dtim6g.IsNull() {
 		dtim := &official.WifiDtimPeriodConfiguration{}
 		if !m.Dtim2g.IsNull() {
-			dtim.N24 = int32(m.Dtim2g.ValueInt64())
+			dtim.N24 = int64ToInt32(m.Dtim2g.ValueInt64())
 		}
 		if !m.Dtim5g.IsNull() {
-			dtim.N5 = int32(m.Dtim5g.ValueInt64())
+			dtim.N5 = int64ToInt32(m.Dtim5g.ValueInt64())
 		}
 		if !m.Dtim6g.IsNull() {
-			dtim.N6 = int32(m.Dtim6g.ValueInt64())
+			dtim.N6 = int64ToInt32(m.Dtim6g.ValueInt64())
 		}
 		std.DtimPeriodByFrequencyGHzOverride = dtim
 	}
