@@ -6,6 +6,15 @@ batched from `.changelog/unreleased/` by changie.
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-07-02
+
+### Added
+
+- `unifi_wifi_broadcast`: `band_steering_enabled` (steer dual-band clients to
+  5/6 GHz) and `mlo_enabled` (WiFi 7 Multi-Link Operation). Both Optional and
+  sent only when set, so an unset attribute leaves the controller's current
+  value untouched (no clobber of a UI setting).
+
 ## [0.3.3] - 2026-07-02
 
 ### Fixed

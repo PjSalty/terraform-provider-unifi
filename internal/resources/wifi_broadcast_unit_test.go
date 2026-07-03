@@ -127,6 +127,7 @@ func TestWifiBroadcastSchema(t *testing.T) {
 		"uapsd_enabled", "client_filter_action", "client_filter_mac_addresses",
 		"bss_transition_enabled", "arp_proxy_enabled", "advertise_device_name",
 		"fast_roaming_enabled",
+		"band_steering_enabled", "mlo_enabled",
 	} {
 		if _, ok := resp.Schema.Attributes[a]; !ok {
 			t.Errorf("schema missing %s attribute", a)
@@ -662,6 +663,25 @@ func TestExpandWifiBroadcastRequiredBools(t *testing.T) {
 		if v != true {
 			t.Errorf("%s = %v, want true", k, v)
 		}
+	}
+}
+
+// TestExpandWifiBroadcastOptionalKnobs proves band steering + MLO ride into the
+// body only when set (unset leaves them out so the controller default stands).
+func TestExpandWifiBroadcastOptionalKnobs(t *testing.T) {
+	m := wbModel(types.StringNull())
+	m.BandSteering = types.BoolValue(true)
+	m.Mlo = types.BoolValue(true)
+	body, diags := expandWifiBroadcast(context.Background(), m)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+	got := wbToMap(t, body)
+	if got["bandSteeringEnabled"] != true {
+		t.Errorf("bandSteeringEnabled = %v, want true", got["bandSteeringEnabled"])
+	}
+	if got["mloEnabled"] != true {
+		t.Errorf("mloEnabled = %v, want true", got["mloEnabled"])
 	}
 }
 
