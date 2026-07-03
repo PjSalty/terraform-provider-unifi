@@ -106,6 +106,60 @@ func wbModel(id types.String) wifiBroadcastModel {
 	}
 }
 
+func TestWifiBroadcastExpandDataRateAndDtim(t *testing.T) {
+	m := wbModel(types.StringNull())
+	m.MinRate2g = types.Int64Value(12000)
+	m.MinRate5g = types.Int64Value(6000)
+	m.Dtim2g = types.Int64Value(3)
+	m.Dtim6g = types.Int64Value(2)
+	body, diags := expandWifiBroadcast(context.Background(), m)
+	if diags.HasError() {
+		t.Fatalf("expand errored: %v", diags)
+	}
+	std, err := body.AsStandardWifiBroadcastCreateUpdate()
+	if err != nil {
+		t.Fatalf("decode std: %v", err)
+	}
+	if std.BasicDataRateKbpsByFrequencyGHz == nil {
+		t.Fatal("BasicDataRateKbpsByFrequencyGHz is nil")
+	}
+	if got := int64(std.BasicDataRateKbpsByFrequencyGHz.N24); got != 12000 {
+		t.Errorf("min-rate 2.4G = %d, want 12000", got)
+	}
+	if got := int64(std.BasicDataRateKbpsByFrequencyGHz.N5); got != 6000 {
+		t.Errorf("min-rate 5G = %d, want 6000", got)
+	}
+	if std.DtimPeriodByFrequencyGHzOverride == nil {
+		t.Fatal("DtimPeriodByFrequencyGHzOverride is nil")
+	}
+	if got := std.DtimPeriodByFrequencyGHzOverride.N24; got != 3 {
+		t.Errorf("dtim 2.4G = %d, want 3", got)
+	}
+	if got := std.DtimPeriodByFrequencyGHzOverride.N6; got != 2 {
+		t.Errorf("dtim 6G = %d, want 2", got)
+	}
+	if got := std.DtimPeriodByFrequencyGHzOverride.N5; got != 0 {
+		t.Errorf("dtim 5G = %d, want 0 (unset band omitted)", got)
+	}
+}
+
+func TestWifiBroadcastExpandNoDataRateWhenUnset(t *testing.T) {
+	body, diags := expandWifiBroadcast(context.Background(), wbModel(types.StringNull()))
+	if diags.HasError() {
+		t.Fatalf("expand errored: %v", diags)
+	}
+	std, err := body.AsStandardWifiBroadcastCreateUpdate()
+	if err != nil {
+		t.Fatalf("decode std: %v", err)
+	}
+	if std.BasicDataRateKbpsByFrequencyGHz != nil {
+		t.Error("BasicDataRateKbpsByFrequencyGHz should be nil when no band is set")
+	}
+	if std.DtimPeriodByFrequencyGHzOverride != nil {
+		t.Error("DtimPeriodByFrequencyGHzOverride should be nil when no band is set")
+	}
+}
+
 func TestWifiBroadcastMetadata(t *testing.T) {
 	var resp resource.MetadataResponse
 	NewWifiBroadcastResource().Metadata(context.Background(), resource.MetadataRequest{ProviderTypeName: "unifi"}, &resp)

@@ -54,9 +54,14 @@ resource "unifi_wifi_broadcast" "iot" {
 - `client_filter_action` (String) Per-SSID MAC filtering mode: ALLOW (only client_filter_mac_addresses may join) or BLOCK (those MACs are denied). Omit to disable MAC filtering. Requires client_filter_mac_addresses.
 - `client_filter_mac_addresses` (Set of String) MAC addresses the client_filter_action applies to (max 512). Lock a hardened IoT SSID to a known device allowlist.
 - `client_isolation_enabled` (Boolean) Prevent clients on this SSID from reaching each other.
+- `dtim_period_2g` (Number) DTIM period (beacon intervals, 1-255) for the 2.4 GHz radio. Sent only when set.
+- `dtim_period_5g` (Number) DTIM period (beacon intervals, 1-255) for the 5 GHz radio. Sent only when set.
+- `dtim_period_6g` (Number) DTIM period (beacon intervals, 1-255) for the 6 GHz radio. Sent only when set.
 - `enabled` (Boolean) Whether the SSID is enabled.
 - `fast_roaming_enabled` (Boolean) 802.11r Fast Roaming (Fast BSS Transition). The controller requires this field to be set on any WPA + standard-WiFi SSID, so it is always sent; defaults off because 802.11r can disrupt some legacy clients. Enable for seamless multi-AP roaming.
 - `hide_name` (Boolean) Hide the SSID (do not broadcast the name).
+- `minimum_data_rate_2g_kbps` (Number) Minimum 2.4 GHz basic data rate in kbps. Disabling low legacy rates evicts sticky/distant clients and cuts airtime waste. Sent only when set. One of 1000, 2000, 5500, 6000, 9000, 11000, 12000, 24000.
+- `minimum_data_rate_5g_kbps` (Number) Minimum 5 GHz basic data rate in kbps. Sent only when set. One of 6000, 9000, 12000, 24000.
 - `mlo_enabled` (Boolean) WiFi 7 Multi-Link Operation: let capable clients aggregate bands on this SSID (needs WiFi-7 APs such as the U7). Sent only when set; omit to leave the controller default.
 - `multicast_to_unicast_conversion_enabled` (Boolean) Multicast Enhancement (IGMPv3): convert multicast frames to unicast so streaming/discovery traffic (Chromecast, AirPlay, mDNS) is delivered reliably over WiFi instead of at the slow multicast basic rate.
 - `network_id` (String) UUID of the network (VLAN) to bind clients to. Omit for the native network.
