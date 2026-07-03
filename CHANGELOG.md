@@ -6,6 +6,22 @@ batched from `.changelog/unreleased/` by changie.
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-07-02
+
+### Fixed
+
+- `unifi_wifi_broadcast` create/update rejected HTTP 400 "WPA security combined
+  with standard WiFi requires fast roaming setting". The security-config object
+  never set `fastRoamingEnabled`, so it serialized to null and the controller
+  refused every WPA-personal SSID. `expandSecurity` now always sends it (plus
+  `wpa3FastRoamingEnabled` on the WPA2/WPA3 mixed variant).
+
+### Added
+
+- `unifi_wifi_broadcast`: `fast_roaming_enabled` (802.11r Fast BSS Transition),
+  Optional+Computed, defaults off (802.11r can disrupt some legacy clients).
+  Enable it for seamless multi-AP roaming.
+
 ## [0.3.2] - 2026-07-02
 
 ### Fixed

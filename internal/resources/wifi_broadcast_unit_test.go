@@ -102,6 +102,7 @@ func wbModel(id types.String) wifiBroadcastModel {
 		BssTransition:       types.BoolValue(true),
 		ArpProxy:            types.BoolValue(false),
 		AdvertiseDeviceName: types.BoolValue(false),
+		FastRoaming:         types.BoolValue(false),
 	}
 }
 
@@ -125,6 +126,7 @@ func TestWifiBroadcastSchema(t *testing.T) {
 		"client_isolation_enabled", "multicast_to_unicast_conversion_enabled",
 		"uapsd_enabled", "client_filter_action", "client_filter_mac_addresses",
 		"bss_transition_enabled", "arp_proxy_enabled", "advertise_device_name",
+		"fast_roaming_enabled",
 	} {
 		if _, ok := resp.Schema.Attributes[a]; !ok {
 			t.Errorf("schema missing %s attribute", a)
@@ -716,6 +718,43 @@ func TestExpandSecurityWPA3(t *testing.T) {
 	if got["passphrase"] != "test-passphrase" {
 		t.Errorf("passphrase = %v, want test-passphrase", got["passphrase"])
 	}
+}
+
+// TestExpandSecurityFastRoaming proves fastRoamingEnabled rides into the WPA
+// security object (the controller rejects a WPA + standard SSID when it is null),
+// including the WPA3 mirror field on the mixed variant.
+func TestExpandSecurityFastRoaming(t *testing.T) {
+	t.Run("wpa2 personal carries fastRoamingEnabled", func(t *testing.T) {
+		sec, diags := expandSecurity(wifiBroadcastModel{
+			Security:    types.StringValue("WPA2_PERSONAL"),
+			Passphrase:  types.StringValue("test-passphrase"),
+			PmfMode:     types.StringNull(),
+			FastRoaming: types.BoolValue(true),
+		})
+		if diags.HasError() {
+			t.Fatalf("unexpected diagnostics: %v", diags)
+		}
+		got := wbToMap(t, sec)
+		if got["fastRoamingEnabled"] != true {
+			t.Errorf("fastRoamingEnabled = %v, want true", got["fastRoamingEnabled"])
+		}
+	})
+	t.Run("mixed carries both fast-roaming fields", func(t *testing.T) {
+		sec, diags := expandSecurity(wifiBroadcastModel{
+			Security:    types.StringValue("WPA2_WPA3_PERSONAL"),
+			Passphrase:  types.StringValue("test-passphrase"),
+			PmfMode:     types.StringNull(),
+			FastRoaming: types.BoolValue(true),
+		})
+		if diags.HasError() {
+			t.Fatalf("unexpected diagnostics: %v", diags)
+		}
+		got := wbToMap(t, sec)
+		if got["fastRoamingEnabled"] != true || got["wpa3FastRoamingEnabled"] != true {
+			t.Errorf("fast-roaming fields = %v / %v, want true/true",
+				got["fastRoamingEnabled"], got["wpa3FastRoamingEnabled"])
+		}
+	})
 }
 
 func TestExpandSecurityWPA2WPA3(t *testing.T) {

@@ -54,6 +54,7 @@ resource "unifi_wifi_broadcast" "iot" {
 - `client_filter_mac_addresses` (Set of String) MAC addresses the client_filter_action applies to (max 512). Lock a hardened IoT SSID to a known device allowlist.
 - `client_isolation_enabled` (Boolean) Prevent clients on this SSID from reaching each other.
 - `enabled` (Boolean) Whether the SSID is enabled.
+- `fast_roaming_enabled` (Boolean) 802.11r Fast Roaming (Fast BSS Transition). The controller requires this field to be set on any WPA + standard-WiFi SSID, so it is always sent; defaults off because 802.11r can disrupt some legacy clients. Enable for seamless multi-AP roaming.
 - `hide_name` (Boolean) Hide the SSID (do not broadcast the name).
 - `multicast_to_unicast_conversion_enabled` (Boolean) Multicast Enhancement (IGMPv3): convert multicast frames to unicast so streaming/discovery traffic (Chromecast, AirPlay, mDNS) is delivered reliably over WiFi instead of at the slow multicast basic rate.
 - `network_id` (String) UUID of the network (VLAN) to bind clients to. Omit for the native network.

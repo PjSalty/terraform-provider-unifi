@@ -61,6 +61,7 @@ type wifiBroadcastModel struct {
 	BssTransition       types.Bool `tfsdk:"bss_transition_enabled"`
 	ArpProxy            types.Bool `tfsdk:"arp_proxy_enabled"`
 	AdvertiseDeviceName types.Bool `tfsdk:"advertise_device_name"`
+	FastRoaming         types.Bool `tfsdk:"fast_roaming_enabled"`
 }
 
 func (r *wifiBroadcastResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -179,6 +180,14 @@ func (r *wifiBroadcastResource) Schema(_ context.Context, _ resource.SchemaReque
 				Default:  booldefault.StaticBool(false),
 				Description: "Advertise the AP device name in beacon frames. The controller requires this " +
 					"field on every write, so it defaults off (matching the UniFi default).",
+			},
+			"fast_roaming_enabled": schema.BoolAttribute{
+				Optional: true,
+				Computed: true,
+				Default:  booldefault.StaticBool(false),
+				Description: "802.11r Fast Roaming (Fast BSS Transition). The controller requires this field " +
+					"to be set on any WPA + standard-WiFi SSID, so it is always sent; defaults off because " +
+					"802.11r can disrupt some legacy clients. Enable for seamless multi-AP roaming.",
 			},
 		},
 	}
@@ -407,13 +416,17 @@ func expandSecurity(m wifiBroadcastModel) (official.WifiSecurityConfigurationDet
 	var sec official.WifiSecurityConfigurationDetailObject
 	var diags diag.Diagnostics
 	pass := m.Passphrase.ValueString()
+	// The controller requires fastRoamingEnabled non-null on every WPA + standard SSID
+	// ("requires fast roaming setting"), so it is always sent. ValueBool coalesces a
+	// null (never happens once the Computed default resolves) to false.
+	fr := m.FastRoaming.ValueBool()
 	var err error
 
 	switch m.Security.ValueString() {
 	case "OPEN":
 		err = sec.FromWifiOpenSecurityConfigurationDetail(official.WifiOpenSecurityConfigurationDetail{Type: "OPEN"})
 	case "WPA2_PERSONAL":
-		v := official.WifiWpa2PersonalSecurityConfigurationDetail{Type: "WPA2_PERSONAL", Passphrase: &pass}
+		v := official.WifiWpa2PersonalSecurityConfigurationDetail{Type: "WPA2_PERSONAL", Passphrase: &pass, FastRoamingEnabled: &fr}
 		if !m.PmfMode.IsNull() && m.PmfMode.ValueString() != "" {
 			pm := official.WifiWpa2PersonalSecurityConfigurationDetailPmfMode(m.PmfMode.ValueString())
 			v.PmfMode = &pm
@@ -421,9 +434,9 @@ func expandSecurity(m wifiBroadcastModel) (official.WifiSecurityConfigurationDet
 		err = sec.FromWifiWpa2PersonalSecurityConfigurationDetail(v)
 	case "WPA3_PERSONAL":
 		err = sec.FromWifiWpa3PersonalSecurityConfigurationDetail(
-			official.WifiWpa3PersonalSecurityConfigurationDetail{Type: "WPA3_PERSONAL", Passphrase: &pass})
+			official.WifiWpa3PersonalSecurityConfigurationDetail{Type: "WPA3_PERSONAL", Passphrase: &pass, FastRoamingEnabled: &fr})
 	case "WPA2_WPA3_PERSONAL":
-		v := official.WifiWpa2Wpa3PersonalSecurityConfigurationDetail{Type: "WPA2_WPA3_PERSONAL", Passphrase: &pass}
+		v := official.WifiWpa2Wpa3PersonalSecurityConfigurationDetail{Type: "WPA2_WPA3_PERSONAL", Passphrase: &pass, FastRoamingEnabled: &fr, Wpa3FastRoamingEnabled: &fr}
 		if !m.PmfMode.IsNull() && m.PmfMode.ValueString() != "" {
 			pm := official.WifiWpa2Wpa3PersonalSecurityConfigurationDetailPmfMode(m.PmfMode.ValueString())
 			v.PmfMode = &pm
