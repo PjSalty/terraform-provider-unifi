@@ -47,6 +47,7 @@ resource "unifi_wifi_broadcast" "iot" {
 
 - `advertise_device_name` (Boolean) Advertise the AP device name in beacon frames. The controller requires this field on every write, so it defaults off (matching the UniFi default).
 - `arp_proxy_enabled` (Boolean) Proxy ARP: the AP answers ARP requests on behalf of clients to cut broadcast traffic. The controller requires this field on every write, so it defaults off (matching the UniFi default).
+- `band_steering_enabled` (Boolean) Steer dual-band clients toward the 5/6 GHz radios to relieve the 2.4 GHz band. Sent only when set; omit to leave the controller default untouched.
 - `broadcasting_device_filter` (Set of String) UUIDs of the APs that broadcast this SSID. Omit to broadcast on all APs.
 - `broadcasting_frequencies_ghz` (Set of String) Frequency bands to advertise on: any of "2.4", "5", "6".
 - `bss_transition_enabled` (Boolean) 802.11v BSS Transition Management: steer a client toward a better AP for seamless roaming across multiple APs. The controller requires this field on every write, so it defaults on (matching the UniFi default).
@@ -56,6 +57,7 @@ resource "unifi_wifi_broadcast" "iot" {
 - `enabled` (Boolean) Whether the SSID is enabled.
 - `fast_roaming_enabled` (Boolean) 802.11r Fast Roaming (Fast BSS Transition). The controller requires this field to be set on any WPA + standard-WiFi SSID, so it is always sent; defaults off because 802.11r can disrupt some legacy clients. Enable for seamless multi-AP roaming.
 - `hide_name` (Boolean) Hide the SSID (do not broadcast the name).
+- `mlo_enabled` (Boolean) WiFi 7 Multi-Link Operation: let capable clients aggregate bands on this SSID (needs WiFi-7 APs such as the U7). Sent only when set; omit to leave the controller default.
 - `multicast_to_unicast_conversion_enabled` (Boolean) Multicast Enhancement (IGMPv3): convert multicast frames to unicast so streaming/discovery traffic (Chromecast, AirPlay, mDNS) is delivered reliably over WiFi instead of at the slow multicast basic rate.
 - `network_id` (String) UUID of the network (VLAN) to bind clients to. Omit for the native network.
 - `passphrase` (String, Sensitive) Pre-shared key (8-63 chars). Required for the personal security modes; omit for OPEN.

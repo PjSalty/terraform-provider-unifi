@@ -62,6 +62,8 @@ type wifiBroadcastModel struct {
 	ArpProxy            types.Bool `tfsdk:"arp_proxy_enabled"`
 	AdvertiseDeviceName types.Bool `tfsdk:"advertise_device_name"`
 	FastRoaming         types.Bool `tfsdk:"fast_roaming_enabled"`
+	BandSteering        types.Bool `tfsdk:"band_steering_enabled"`
+	Mlo                 types.Bool `tfsdk:"mlo_enabled"`
 }
 
 func (r *wifiBroadcastResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -188,6 +190,16 @@ func (r *wifiBroadcastResource) Schema(_ context.Context, _ resource.SchemaReque
 				Description: "802.11r Fast Roaming (Fast BSS Transition). The controller requires this field " +
 					"to be set on any WPA + standard-WiFi SSID, so it is always sent; defaults off because " +
 					"802.11r can disrupt some legacy clients. Enable for seamless multi-AP roaming.",
+			},
+			"band_steering_enabled": schema.BoolAttribute{
+				Optional: true,
+				Description: "Steer dual-band clients toward the 5/6 GHz radios to relieve the 2.4 GHz band. " +
+					"Sent only when set; omit to leave the controller default untouched.",
+			},
+			"mlo_enabled": schema.BoolAttribute{
+				Optional: true,
+				Description: "WiFi 7 Multi-Link Operation: let capable clients aggregate bands on this SSID " +
+					"(needs WiFi-7 APs such as the U7). Sent only when set; omit to leave the controller default.",
 			},
 		},
 	}
@@ -402,6 +414,10 @@ func expandWifiBroadcast(ctx context.Context, m wifiBroadcastModel) (official.Wi
 	std.BssTransitionEnabled = m.BssTransition.ValueBoolPointer()
 	std.ArpProxyEnabled = m.ArpProxy.ValueBoolPointer()
 	std.AdvertiseDeviceName = m.AdvertiseDeviceName.ValueBoolPointer()
+	// Optional roaming/WiFi-7 knobs: a nil pointer (attribute unset) leaves the
+	// controller value untouched, so these never clobber a UI setting.
+	std.BandSteeringEnabled = m.BandSteering.ValueBoolPointer()
+	std.MloEnabled = m.Mlo.ValueBoolPointer()
 	if freqs := setToFrequencies(ctx, m.Frequencies, &diags); len(freqs) > 0 {
 		std.BroadcastingFrequenciesGHz = &freqs
 	}
