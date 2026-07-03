@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -64,6 +65,15 @@ type wifiBroadcastModel struct {
 	FastRoaming         types.Bool `tfsdk:"fast_roaming_enabled"`
 	BandSteering        types.Bool `tfsdk:"band_steering_enabled"`
 	Mlo                 types.Bool `tfsdk:"mlo_enabled"`
+
+	// Minimum basic data rate (kbps) per band. Disabling low legacy rates
+	// (1/2/5.5/11 Mbps) evicts sticky/distant clients and cuts 2.4 GHz airtime.
+	MinRate2g types.Int64 `tfsdk:"minimum_data_rate_2g_kbps"`
+	MinRate5g types.Int64 `tfsdk:"minimum_data_rate_5g_kbps"`
+	// DTIM period override per band (1-255 beacon intervals).
+	Dtim2g types.Int64 `tfsdk:"dtim_period_2g"`
+	Dtim5g types.Int64 `tfsdk:"dtim_period_5g"`
+	Dtim6g types.Int64 `tfsdk:"dtim_period_6g"`
 }
 
 func (r *wifiBroadcastResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -200,6 +210,36 @@ func (r *wifiBroadcastResource) Schema(_ context.Context, _ resource.SchemaReque
 				Optional: true,
 				Description: "WiFi 7 Multi-Link Operation: let capable clients aggregate bands on this SSID " +
 					"(needs WiFi-7 APs such as the U7). Sent only when set; omit to leave the controller default.",
+			},
+			"minimum_data_rate_2g_kbps": schema.Int64Attribute{
+				Optional: true,
+				Description: "Minimum 2.4 GHz basic data rate in kbps. Disabling low legacy rates evicts " +
+					"sticky/distant clients and cuts airtime waste. Sent only when set.",
+				Validators: []validator.Int64{
+					int64validator.OneOf(1000, 2000, 5500, 6000, 9000, 11000, 12000, 24000),
+				},
+			},
+			"minimum_data_rate_5g_kbps": schema.Int64Attribute{
+				Optional:    true,
+				Description: "Minimum 5 GHz basic data rate in kbps. Sent only when set.",
+				Validators: []validator.Int64{
+					int64validator.OneOf(6000, 9000, 12000, 24000),
+				},
+			},
+			"dtim_period_2g": schema.Int64Attribute{
+				Optional:    true,
+				Description: "DTIM period (beacon intervals, 1-255) for the 2.4 GHz radio. Sent only when set.",
+				Validators:  []validator.Int64{int64validator.Between(1, 255)},
+			},
+			"dtim_period_5g": schema.Int64Attribute{
+				Optional:    true,
+				Description: "DTIM period (beacon intervals, 1-255) for the 5 GHz radio. Sent only when set.",
+				Validators:  []validator.Int64{int64validator.Between(1, 255)},
+			},
+			"dtim_period_6g": schema.Int64Attribute{
+				Optional:    true,
+				Description: "DTIM period (beacon intervals, 1-255) for the 6 GHz radio. Sent only when set.",
+				Validators:  []validator.Int64{int64validator.Between(1, 255)},
 			},
 		},
 	}
@@ -418,6 +458,32 @@ func expandWifiBroadcast(ctx context.Context, m wifiBroadcastModel) (official.Wi
 	// controller value untouched, so these never clobber a UI setting.
 	std.BandSteeringEnabled = m.BandSteering.ValueBoolPointer()
 	std.MloEnabled = m.Mlo.ValueBoolPointer()
+	// Minimum basic data rate: only build the object when a band is set, so an
+	// unset config leaves the pointer nil (omitempty) rather than sending zeros.
+	if !m.MinRate2g.IsNull() || !m.MinRate5g.IsNull() {
+		dr := &official.WifiBasicDataRateConfiguration{}
+		if !m.MinRate2g.IsNull() {
+			dr.N24 = official.WifiBasicDataRateConfiguration24(m.MinRate2g.ValueInt64())
+		}
+		if !m.MinRate5g.IsNull() {
+			dr.N5 = official.WifiBasicDataRateConfiguration5(m.MinRate5g.ValueInt64())
+		}
+		std.BasicDataRateKbpsByFrequencyGHz = dr
+	}
+	// DTIM period override per band, same nil-when-unset discipline.
+	if !m.Dtim2g.IsNull() || !m.Dtim5g.IsNull() || !m.Dtim6g.IsNull() {
+		dtim := &official.WifiDtimPeriodConfiguration{}
+		if !m.Dtim2g.IsNull() {
+			dtim.N24 = int32(m.Dtim2g.ValueInt64())
+		}
+		if !m.Dtim5g.IsNull() {
+			dtim.N5 = int32(m.Dtim5g.ValueInt64())
+		}
+		if !m.Dtim6g.IsNull() {
+			dtim.N6 = int32(m.Dtim6g.ValueInt64())
+		}
+		std.DtimPeriodByFrequencyGHzOverride = dtim
+	}
 	if freqs := setToFrequencies(ctx, m.Frequencies, &diags); len(freqs) > 0 {
 		std.BroadcastingFrequenciesGHz = &freqs
 	}
