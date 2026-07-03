@@ -87,18 +87,21 @@ func wbToMap(t *testing.T, body any) map[string]any {
 // wbModel returns a fully-populated valid model with the given id.
 func wbModel(id types.String) wifiBroadcastModel {
 	return wifiBroadcastModel{
-		ID:               id,
-		Name:             types.StringValue("guest-wifi"),
-		Enabled:          types.BoolValue(true),
-		HideName:         types.BoolValue(false),
-		Security:         types.StringValue("WPA2_PERSONAL"),
-		Passphrase:       types.StringValue("test-passphrase"),
-		PmfMode:          types.StringNull(),
-		Frequencies:      types.SetValueMust(types.StringType, []attr.Value{types.StringValue("5")}),
-		NetworkID:        types.StringNull(),
-		DeviceFilter:     types.SetNull(types.StringType),
-		ClientIsolation:  types.BoolValue(false),
-		ClientFilterMacs: types.SetNull(types.StringType),
+		ID:                  id,
+		Name:                types.StringValue("guest-wifi"),
+		Enabled:             types.BoolValue(true),
+		HideName:            types.BoolValue(false),
+		Security:            types.StringValue("WPA2_PERSONAL"),
+		Passphrase:          types.StringValue("test-passphrase"),
+		PmfMode:             types.StringNull(),
+		Frequencies:         types.SetValueMust(types.StringType, []attr.Value{types.StringValue("5")}),
+		NetworkID:           types.StringNull(),
+		DeviceFilter:        types.SetNull(types.StringType),
+		ClientIsolation:     types.BoolValue(false),
+		ClientFilterMacs:    types.SetNull(types.StringType),
+		BssTransition:       types.BoolValue(true),
+		ArpProxy:            types.BoolValue(false),
+		AdvertiseDeviceName: types.BoolValue(false),
 	}
 }
 
@@ -121,6 +124,7 @@ func TestWifiBroadcastSchema(t *testing.T) {
 		"broadcasting_frequencies_ghz", "network_id", "broadcasting_device_filter",
 		"client_isolation_enabled", "multicast_to_unicast_conversion_enabled",
 		"uapsd_enabled", "client_filter_action", "client_filter_mac_addresses",
+		"bss_transition_enabled", "arp_proxy_enabled", "advertise_device_name",
 	} {
 		if _, ok := resp.Schema.Attributes[a]; !ok {
 			t.Errorf("schema missing %s attribute", a)
@@ -309,13 +313,23 @@ func TestWifiBroadcastRead(t *testing.T) {
 			GetFunc: func(_ context.Context, siteID, ssidID uuid.UUID) (*official.WifiBroadcastDetails, error) {
 				gotSite = siteID
 				gotID = ssidID
-				return &official.WifiBroadcastDetails{
+				d := &official.WifiBroadcastDetails{
 					Id:                     ssidID,
 					Name:                   "guest-wifi-renamed",
 					Enabled:                false,
 					HideName:               true,
 					ClientIsolationEnabled: true,
-				}, nil
+				}
+				// Controller values differ from stateModel (bss true, arp false, adv false)
+				// so a successful refresh flips all three.
+				bssOff, arpOn, advOn := false, true, true
+				if err := d.FromStandardWifiBroadcastDetail(official.StandardWifiBroadcastDetail{
+					Id: ssidID, Type: "STANDARD",
+					BssTransitionEnabled: &bssOff, ArpProxyEnabled: &arpOn, AdvertiseDeviceName: &advOn,
+				}); err != nil {
+					t.Fatalf("build standard detail: %v", err)
+				}
+				return d, nil
 			},
 		})
 		st := wbStateOf(t, stateModel)
@@ -341,6 +355,11 @@ func TestWifiBroadcastRead(t *testing.T) {
 		}
 		if got.Passphrase.ValueString() != "test-passphrase" {
 			t.Errorf("passphrase = %q, want preserved", got.Passphrase.ValueString())
+		}
+		// The three STANDARD-variant bools refresh from the controller.
+		if got.BssTransition.ValueBool() || !got.ArpProxy.ValueBool() || !got.AdvertiseDeviceName.ValueBool() {
+			t.Errorf("required bools = bss:%v arp:%v adv:%v, want false/true/true",
+				got.BssTransition.ValueBool(), got.ArpProxy.ValueBool(), got.AdvertiseDeviceName.ValueBool())
 		}
 	})
 }
@@ -617,6 +636,30 @@ func TestExpandWifiBroadcastToggles(t *testing.T) {
 	}
 	if got["uapsdEnabled"] != true {
 		t.Errorf("uapsdEnabled = %v, want true", got["uapsdEnabled"])
+	}
+}
+
+// TestExpandWifiBroadcastRequiredBools proves the three controller-required bools
+// (which the API rejects as null) always ride into the body as top-level keys.
+func TestExpandWifiBroadcastRequiredBools(t *testing.T) {
+	m := wbModel(types.StringNull())
+	m.BssTransition = types.BoolValue(true)
+	m.ArpProxy = types.BoolValue(true)
+	m.AdvertiseDeviceName = types.BoolValue(true)
+	body, diags := expandWifiBroadcast(context.Background(), m)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+	got := wbToMap(t, body)
+	for _, k := range []string{"bssTransitionEnabled", "arpProxyEnabled", "advertiseDeviceName"} {
+		v, present := got[k]
+		if !present {
+			t.Errorf("%s missing from body (the controller rejects null)", k)
+			continue
+		}
+		if v != true {
+			t.Errorf("%s = %v, want true", k, v)
+		}
 	}
 }
 
