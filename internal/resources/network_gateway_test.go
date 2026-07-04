@@ -11,11 +11,10 @@ import (
 )
 
 // netConfigOf builds a Config carrying the given model. tfsdk.Config has no
-// Set, so we Set into a State (which does) and reuse its Raw tftypes value.
+// Set, so we Set into a State (which does) and convert it (identical fields).
 func netConfigOf(t *testing.T, m networkModel) tfsdk.Config {
 	t.Helper()
-	s := netStateOf(t, m)
-	return tfsdk.Config{Schema: s.Schema, Raw: s.Raw}
+	return tfsdk.Config(netStateOf(t, m))
 }
 
 func validateNetworkConfig(t *testing.T, m networkModel) *resource.ValidateConfigResponse {
