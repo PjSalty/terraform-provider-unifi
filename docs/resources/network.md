@@ -3,21 +3,43 @@
 page_title: "unifi_network Resource - unifi"
 subcategory: ""
 description: |-
-  A VLAN-only network (an 802.1Q tag) on the UniFi controller.
+  A UniFi network: either VLAN-only (management = UNMANAGED) or gateway-managed (management = GATEWAY, routed by the UniFi gateway with an L3 subnet and optional DHCP).
 ---
 
 # unifi_network (Resource)
 
-A VLAN-only network (an 802.1Q tag) on the UniFi controller.
+A UniFi network: either VLAN-only (management = UNMANAGED) or gateway-managed (management = GATEWAY, routed by the UniFi gateway with an L3 subnet and optional DHCP).
 
 ## Example Usage
 
 ```terraform
-# A VLAN-only network (an 802.1Q tag) for an IoT segment.
+# A VLAN-only network (an 802.1Q tag) for an IoT segment. An external router
+# (not a UniFi gateway) handles L3 for this VLAN.
 resource "unifi_network" "iot" {
   name    = "IoT Devices"
   vlan_id = 20
   enabled = true
+}
+
+# A gateway-managed network: the UniFi gateway routes the subnet and runs a
+# DHCP server. Only use this when a UniFi gateway is the router for the VLAN.
+resource "unifi_network" "corp" {
+  name       = "Corp"
+  vlan_id    = 10
+  management = "GATEWAY"
+
+  gateway = {
+    host_ip_address = "192.168.10.1"
+    prefix_length   = 24
+
+    dhcp = {
+      range_start        = "192.168.10.100"
+      range_stop         = "192.168.10.200"
+      dns_servers        = ["10.10.20.13"]
+      domain_name        = "corp.lan"
+      lease_time_seconds = 86400
+    }
+  }
 }
 ```
 
@@ -32,7 +54,36 @@ resource "unifi_network" "iot" {
 ### Optional
 
 - `enabled` (Boolean) Whether the network is enabled.
+- `gateway` (Attributes) L3 configuration applied by the UniFi gateway. Required when management = GATEWAY; must be omitted otherwise. (see [below for nested schema](#nestedatt--gateway))
+- `management` (String) Management mode: UNMANAGED (VLAN-only, an external router does L3) or GATEWAY (the UniFi gateway routes the network; requires a gateway block).
 
 ### Read-Only
 
 - `id` (String) Network UUID.
+
+<a id="nestedatt--gateway"></a>
+### Nested Schema for `gateway`
+
+Required:
+
+- `host_ip_address` (String) The gateway's IP address on this network (e.g. 192.168.1.1).
+- `prefix_length` (Number) Subnet prefix length (8-30), e.g. 24 for a /24.
+
+Optional:
+
+- `auto_scale_enabled` (Boolean) Auto-scale the subnet size based on active DHCP leases.
+- `dhcp` (Attributes) DHCP server for this subnet. Omit the block for no DHCP. (see [below for nested schema](#nestedatt--gateway--dhcp))
+
+<a id="nestedatt--gateway--dhcp"></a>
+### Nested Schema for `gateway.dhcp`
+
+Required:
+
+- `range_start` (String) First address of the DHCP pool.
+- `range_stop` (String) Last address of the DHCP pool.
+
+Optional:
+
+- `dns_servers` (List of String) DNS servers handed to clients (max 4). Omit for the controller default.
+- `domain_name` (String) Domain name handed to clients.
+- `lease_time_seconds` (Number) DHCP lease time in seconds (0-31536000).
