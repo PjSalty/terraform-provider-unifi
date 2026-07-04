@@ -1,0 +1,3 @@
+kind: Added
+body: '`unifi_network`: gateway-managed networks. A new `management` selector (UNMANAGED, the default VLAN-only mode, or GATEWAY) plus a `gateway` block (host_ip_address, prefix_length, auto_scale_enabled) with an optional nested `dhcp` block (range_start/range_stop, dns_servers, domain_name, lease_time_seconds) let the UniFi gateway route an L3 subnet and serve DHCP. UNMANAGED networks are unchanged. A ValidateConfig enforces that the gateway block is present iff management = GATEWAY.'
+time: 2026-07-04T01:58:24.000000000Z
