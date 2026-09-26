@@ -1,0 +1,3 @@
+kind: Fixed
+body: '`unifi_network`: supply gateway behavior and DHCP server values required by official contracts since Network 10.1.78, fixing gateway writes across the supported range. Resolve the firewall zone required at runtime on Network 10.6.101 while preserving existing gateway zone assignments.'
+time: 2026-08-31T21:15:00.000000000-07:00

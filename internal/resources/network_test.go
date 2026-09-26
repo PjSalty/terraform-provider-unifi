@@ -82,6 +82,16 @@ func TestExpandNetworkMarshalsGateway(t *testing.T) {
 	if got["name"] != "Corp" || got["vlanId"] != float64(10) || got["enabled"] != true {
 		t.Errorf("named fields lost: name=%v vlan=%v enabled=%v", got["name"], got["vlanId"], got["enabled"])
 	}
+	for key, want := range map[string]bool{
+		"isolationEnabled":      false,
+		"cellularBackupEnabled": false,
+		"internetAccessEnabled": true,
+		"mdnsForwardingEnabled": false,
+	} {
+		if got[key] != want {
+			t.Errorf("%s = %v, want %v", key, got[key], want)
+		}
+	}
 	ipv4, ok := got["ipv4Configuration"].(map[string]any)
 	if !ok {
 		t.Fatalf("ipv4Configuration missing/not object: %v", got["ipv4Configuration"])
@@ -110,17 +120,32 @@ func TestExpandNetworkMarshalsGatewayDHCP(t *testing.T) {
 		Enabled:    types.BoolValue(true),
 		Management: types.StringValue("GATEWAY"),
 		Gateway: &gatewayModel{
-			HostIPAddress: types.StringValue("192.168.10.1"),
-			PrefixLength:  types.Int64Value(24),
+			HostIPAddress:         types.StringValue("192.168.10.1"),
+			PrefixLength:          types.Int64Value(24),
+			IsolationEnabled:      types.BoolValue(true),
+			CellularBackupEnabled: types.BoolValue(true),
+			InternetAccessEnabled: types.BoolValue(false),
+			MDNSForwardingEnabled: types.BoolValue(true),
 			DHCP: &dhcpModel{
-				RangeStart:       types.StringValue("192.168.10.100"),
-				RangeStop:        types.StringValue("192.168.10.200"),
-				DNSServers:       dns,
-				DomainName:       types.StringValue("corp.lan"),
-				LeaseTimeSeconds: types.Int64Value(86400),
+				RangeStart:                   types.StringValue("192.168.10.100"),
+				RangeStop:                    types.StringValue("192.168.10.200"),
+				DNSServers:                   dns,
+				DomainName:                   types.StringValue("corp.lan"),
+				LeaseTimeSeconds:             types.Int64Value(43200),
+				PingConflictDetectionEnabled: types.BoolValue(false),
 			},
 		},
 	}))
+	for key, want := range map[string]bool{
+		"isolationEnabled":      true,
+		"cellularBackupEnabled": true,
+		"internetAccessEnabled": false,
+		"mdnsForwardingEnabled": true,
+	} {
+		if got[key] != want {
+			t.Errorf("%s = %v, want explicit %v", key, got[key], want)
+		}
+	}
 	ipv4 := got["ipv4Configuration"].(map[string]any)
 	dhcp, ok := ipv4["dhcpConfiguration"].(map[string]any)
 	if !ok {
@@ -136,8 +161,11 @@ func TestExpandNetworkMarshalsGatewayDHCP(t *testing.T) {
 	if dhcp["domainName"] != "corp.lan" {
 		t.Errorf("domainName = %v, want corp.lan", dhcp["domainName"])
 	}
-	if dhcp["leaseTimeSeconds"] != float64(86400) {
-		t.Errorf("leaseTimeSeconds = %v, want 86400", dhcp["leaseTimeSeconds"])
+	if dhcp["leaseTimeSeconds"] != float64(43200) {
+		t.Errorf("leaseTimeSeconds = %v, want 43200", dhcp["leaseTimeSeconds"])
+	}
+	if dhcp["pingConflictDetectionEnabled"] != false {
+		t.Errorf("pingConflictDetectionEnabled = %v, want false", dhcp["pingConflictDetectionEnabled"])
 	}
 	dnsOut, ok := dhcp["dnsServerIpAddressesOverride"].([]any)
 	if !ok || len(dnsOut) != 2 || dnsOut[0] != "10.10.20.13" {
@@ -194,14 +222,19 @@ func TestNetworkRoundTripGatewayDHCP(t *testing.T) {
 		Enabled:    types.BoolValue(true),
 		Management: types.StringValue("GATEWAY"),
 		Gateway: &gatewayModel{
-			HostIPAddress: types.StringValue("192.168.10.1"),
-			PrefixLength:  types.Int64Value(24),
+			HostIPAddress:         types.StringValue("192.168.10.1"),
+			PrefixLength:          types.Int64Value(24),
+			IsolationEnabled:      types.BoolValue(true),
+			CellularBackupEnabled: types.BoolValue(true),
+			InternetAccessEnabled: types.BoolValue(false),
+			MDNSForwardingEnabled: types.BoolValue(true),
 			DHCP: &dhcpModel{
-				RangeStart:       types.StringValue("192.168.10.100"),
-				RangeStop:        types.StringValue("192.168.10.200"),
-				DNSServers:       dns,
-				DomainName:       types.StringValue("corp.lan"),
-				LeaseTimeSeconds: types.Int64Value(86400),
+				RangeStart:                   types.StringValue("192.168.10.100"),
+				RangeStop:                    types.StringValue("192.168.10.200"),
+				DNSServers:                   dns,
+				DomainName:                   types.StringValue("corp.lan"),
+				LeaseTimeSeconds:             types.Int64Value(43200),
+				PingConflictDetectionEnabled: types.BoolValue(false),
 			},
 		},
 	})
@@ -236,6 +269,12 @@ func TestNetworkRoundTripGatewayDHCP(t *testing.T) {
 	if m.Gateway.PrefixLength.ValueInt64() != 24 {
 		t.Errorf("prefix_length = %d, want 24", m.Gateway.PrefixLength.ValueInt64())
 	}
+	if !m.Gateway.IsolationEnabled.ValueBool() || !m.Gateway.CellularBackupEnabled.ValueBool() ||
+		m.Gateway.InternetAccessEnabled.ValueBool() || !m.Gateway.MDNSForwardingEnabled.ValueBool() {
+		t.Errorf("gateway behavior fields did not round-trip: isolation=%v cellular=%v internet=%v mdns=%v",
+			m.Gateway.IsolationEnabled.ValueBool(), m.Gateway.CellularBackupEnabled.ValueBool(),
+			m.Gateway.InternetAccessEnabled.ValueBool(), m.Gateway.MDNSForwardingEnabled.ValueBool())
+	}
 	if m.Gateway.DHCP == nil {
 		t.Fatal("dhcp flattened to nil")
 	}
@@ -245,8 +284,11 @@ func TestNetworkRoundTripGatewayDHCP(t *testing.T) {
 	if m.Gateway.DHCP.DomainName.ValueString() != "corp.lan" {
 		t.Errorf("domain_name = %q", m.Gateway.DHCP.DomainName.ValueString())
 	}
-	if m.Gateway.DHCP.LeaseTimeSeconds.ValueInt64() != 86400 {
-		t.Errorf("lease_time_seconds = %d, want 86400", m.Gateway.DHCP.LeaseTimeSeconds.ValueInt64())
+	if m.Gateway.DHCP.LeaseTimeSeconds.ValueInt64() != 43200 {
+		t.Errorf("lease_time_seconds = %d, want 43200", m.Gateway.DHCP.LeaseTimeSeconds.ValueInt64())
+	}
+	if m.Gateway.DHCP.PingConflictDetectionEnabled.ValueBool() {
+		t.Error("ping_conflict_detection_enabled = true, want false")
 	}
 	var dnsOut []string
 	if d := m.Gateway.DHCP.DNSServers.ElementsAs(context.Background(), &dnsOut, false); d.HasError() {

@@ -4,11 +4,33 @@ page_title: "unifi_network Resource - unifi"
 subcategory: ""
 description: |-
   A UniFi network: either VLAN-only (management = UNMANAGED) or gateway-managed (management = GATEWAY, routed by the UniFi gateway with an L3 subnet and optional DHCP).
+  Gateway behavior and DHCP lease defaults are provider defaults applied during
+  planning, including after import. To preserve non-default controller settings,
+  configure them explicitly; omitting them plans a visible change to the defaults.
+  An omitted zone preserves a known zone or reads the existing gateway's zone
+  before update. New gateway networks discover the system-defined Internal zone.
+  Set zone_id explicitly if that observed name cannot be resolved uniquely.
+  The bundled official contracts require gateway isolation, cellular backup, and
+  internet access since Network 10.1.78, and DHCP lease and ping-conflict detection
+  throughout the supported versions. mDNS forwarding was required before 10.3.58;
+  the provider always sends a boolean for compatibility with those releases.
 ---
 
 # unifi_network (Resource)
 
 A UniFi network: either VLAN-only (management = UNMANAGED) or gateway-managed (management = GATEWAY, routed by the UniFi gateway with an L3 subnet and optional DHCP).
+
+Gateway behavior and DHCP lease defaults are provider defaults applied during
+planning, including after import. To preserve non-default controller settings,
+configure them explicitly; omitting them plans a visible change to the defaults.
+An omitted zone preserves a known zone or reads the existing gateway's zone
+before update. New gateway networks discover the system-defined Internal zone.
+Set `zone_id` explicitly if that observed name cannot be resolved uniquely.
+
+The bundled official contracts require gateway isolation, cellular backup, and
+internet access since Network 10.1.78, and DHCP lease and ping-conflict detection
+throughout the supported versions. mDNS forwarding was required before 10.3.58;
+the provider always sends a boolean for compatibility with those releases.
 
 ## Example Usage
 
@@ -29,15 +51,20 @@ resource "unifi_network" "corp" {
   management = "GATEWAY"
 
   gateway = {
-    host_ip_address = "192.168.10.1"
-    prefix_length   = 24
+    host_ip_address         = "192.168.10.1"
+    prefix_length           = 24
+    isolation_enabled       = false
+    cellular_backup_enabled = false
+    internet_access_enabled = true
+    mdns_forwarding_enabled = false
 
     dhcp = {
-      range_start        = "192.168.10.100"
-      range_stop         = "192.168.10.200"
-      dns_servers        = ["10.10.20.13"]
-      domain_name        = "corp.lan"
-      lease_time_seconds = 86400
+      range_start                     = "192.168.10.100"
+      range_stop                      = "192.168.10.200"
+      dns_servers                     = ["10.10.20.13"]
+      domain_name                     = "corp.lan"
+      lease_time_seconds              = 86400
+      ping_conflict_detection_enabled = true
     }
   }
 }
@@ -72,7 +99,12 @@ Required:
 Optional:
 
 - `auto_scale_enabled` (Boolean) Auto-scale the subnet size based on active DHCP leases.
+- `cellular_backup_enabled` (Boolean) Whether this network may use cellular backup when WAN connections are down. The Integration API requires a value on every gateway-network write; omitted configurations default to false.
 - `dhcp` (Attributes) DHCP server for this subnet. Omit the block for no DHCP. (see [below for nested schema](#nestedatt--gateway--dhcp))
+- `internet_access_enabled` (Boolean) Whether devices on this network may access the internet. The Integration API requires a value on every gateway-network write; omitted configurations default to true.
+- `isolation_enabled` (Boolean) Whether this network is isolated from other networks. The Integration API requires a value on every gateway-network write; omitted configurations default to false.
+- `mdns_forwarding_enabled` (Boolean) Whether this network participates in mDNS forwarding. Omitted configurations default to false; a value is always sent for compatibility with Network versions where it is required. On Network >= 10.3.58 this explicitly disables forwarding rather than inheriting the site mDNS setting.
+- `zone_id` (String) Firewall zone UUID associated with this network. When omitted, preserves a known zone or reads the existing gateway network's zone before updating. New gateway networks resolve the controller's system-defined Internal zone. Set explicitly if automatic discovery is unavailable.
 
 <a id="nestedatt--gateway--dhcp"></a>
 ### Nested Schema for `gateway.dhcp`
@@ -85,5 +117,6 @@ Required:
 Optional:
 
 - `dns_servers` (List of String) DNS servers handed to clients (max 4). Omit for the controller default.
-- `domain_name` (String) Domain name handed to clients.
-- `lease_time_seconds` (Number) DHCP lease time in seconds (0-31536000).
+- `domain_name` (String) Non-empty domain name handed to clients. Omit to clear the domain; an empty controller value reads as null.
+- `lease_time_seconds` (Number) DHCP lease time in seconds (0-31536000). The Integration API requires a value for DHCP servers; omitted configurations default to 86400 (24 hours).
+- `ping_conflict_detection_enabled` (Boolean) Check whether an address is already in use before the DHCP server offers it. The Integration API requires a value; omitted configurations default to true.

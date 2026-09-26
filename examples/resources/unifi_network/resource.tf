@@ -14,15 +14,20 @@ resource "unifi_network" "corp" {
   management = "GATEWAY"
 
   gateway = {
-    host_ip_address = "192.168.10.1"
-    prefix_length   = 24
+    host_ip_address         = "192.168.10.1"
+    prefix_length           = 24
+    isolation_enabled       = false
+    cellular_backup_enabled = false
+    internet_access_enabled = true
+    mdns_forwarding_enabled = false
 
     dhcp = {
-      range_start        = "192.168.10.100"
-      range_stop         = "192.168.10.200"
-      dns_servers        = ["10.10.20.13"]
-      domain_name        = "corp.lan"
-      lease_time_seconds = 86400
+      range_start                     = "192.168.10.100"
+      range_stop                      = "192.168.10.200"
+      dns_servers                     = ["10.10.20.13"]
+      domain_name                     = "corp.lan"
+      lease_time_seconds              = 86400
+      ping_conflict_detection_enabled = true
     }
   }
 }

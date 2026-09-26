@@ -1,0 +1,3 @@
+kind: Fixed
+body: '`unifi_network.gateway.dhcp.domain_name`: normalize an empty controller domain to null so omitted configuration converges. Reject an explicitly configured empty string during validation; omit the attribute to clear the domain.'
+time: 2026-09-07T08:50:00.000000000Z

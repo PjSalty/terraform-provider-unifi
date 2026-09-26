@@ -1,0 +1,3 @@
+kind: Added
+body: '`unifi_network.gateway`: add isolation, cellular backup, internet access, mDNS forwarding, and firewall zone controls, plus DHCP ping-conflict detection, with read/refresh support. Behavior and lease defaults are explicit during planning; configure imported non-default values to preserve them.'
+time: 2026-08-31T21:15:01.000000000-07:00

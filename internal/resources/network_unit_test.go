@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -99,6 +100,44 @@ func TestNetworkSchema(t *testing.T) {
 		if _, ok := resp.Schema.Attributes[attr]; !ok {
 			t.Errorf("schema missing %s attribute", attr)
 		}
+	}
+	gateway, ok := resp.Schema.Attributes["gateway"].(resourceschema.SingleNestedAttribute)
+	if !ok {
+		t.Fatalf("gateway is %T, want SingleNestedAttribute", resp.Schema.Attributes["gateway"])
+	}
+	for _, name := range []string{
+		"isolation_enabled", "cellular_backup_enabled", "internet_access_enabled", "mdns_forwarding_enabled",
+	} {
+		attr, ok := gateway.Attributes[name].(resourceschema.BoolAttribute)
+		if !ok {
+			t.Errorf("gateway.%s is %T, want BoolAttribute", name, gateway.Attributes[name])
+			continue
+		}
+		if !attr.Optional || !attr.Computed || attr.Required {
+			t.Errorf("gateway.%s flags = optional:%v computed:%v required:%v, want true/true/false",
+				name, attr.Optional, attr.Computed, attr.Required)
+		}
+	}
+	zone, ok := gateway.Attributes["zone_id"].(resourceschema.StringAttribute)
+	if !ok {
+		t.Fatalf("gateway.zone_id is %T, want StringAttribute", gateway.Attributes["zone_id"])
+	}
+	if !zone.Optional || !zone.Computed || zone.Required {
+		t.Errorf("gateway.zone_id flags = optional:%v computed:%v required:%v, want true/true/false",
+			zone.Optional, zone.Computed, zone.Required)
+	}
+	dhcp, ok := gateway.Attributes["dhcp"].(resourceschema.SingleNestedAttribute)
+	if !ok {
+		t.Fatalf("gateway.dhcp is %T, want SingleNestedAttribute", gateway.Attributes["dhcp"])
+	}
+	conflict, ok := dhcp.Attributes["ping_conflict_detection_enabled"].(resourceschema.BoolAttribute)
+	if !ok {
+		t.Fatalf("gateway.dhcp.ping_conflict_detection_enabled is %T, want BoolAttribute",
+			dhcp.Attributes["ping_conflict_detection_enabled"])
+	}
+	if !conflict.Optional || !conflict.Computed || conflict.Required {
+		t.Errorf("gateway.dhcp.ping_conflict_detection_enabled flags = optional:%v computed:%v required:%v, want true/true/false",
+			conflict.Optional, conflict.Computed, conflict.Required)
 	}
 }
 

@@ -10,6 +10,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// A gateway-network fix must not start writing unrelated Wi-Fi lock settings.
+func TestExpandWifiBroadcastOmitsUnmodeledLocks(t *testing.T) {
+	body, diags := expandWifiBroadcast(context.Background(), wbModel(types.StringNull()))
+	if diags.HasError() {
+		t.Fatal(diags)
+	}
+	got := wbToMap(t, body)
+	for _, key := range []string{"channel2gLockedTo6", "dtimPeriod2gLockedTo3"} {
+		if _, present := got[key]; present {
+			t.Errorf("unmodeled Wi-Fi field %s must not be written", key)
+		}
+	}
+}
+
 // TestExpandWifiBroadcastWPA2 verifies the full nested-union chain marshals
 // correctly: the STANDARD discriminator, the named fields surviving the union,
 // the security variant (type + passphrase), the band list riding the union, and
