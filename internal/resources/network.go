@@ -104,6 +104,18 @@ func (r *networkResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 	resp.Schema = schema.Schema{
 		Description: "A UniFi network: either VLAN-only (management = UNMANAGED) or gateway-managed " +
 			"(management = GATEWAY, routed by the UniFi gateway with an L3 subnet and optional DHCP).",
+		MarkdownDescription: "A UniFi network: either VLAN-only (management = UNMANAGED) or gateway-managed " +
+			"(management = GATEWAY, routed by the UniFi gateway with an L3 subnet and optional DHCP).\n\n" +
+			"Gateway behavior and DHCP lease defaults are provider defaults applied during\n" +
+			"planning, including after import. To preserve non-default controller settings,\n" +
+			"configure them explicitly; omitting them plans a visible change to the defaults.\n" +
+			"An omitted zone preserves a known zone or reads the existing gateway's zone\n" +
+			"before update. New gateway networks discover the system-defined Internal zone.\n" +
+			"Set `zone_id` explicitly if that observed name cannot be resolved uniquely.\n\n" +
+			"The bundled official contracts require gateway isolation, cellular backup, and\n" +
+			"internet access since Network 10.1.78, and DHCP lease and ping-conflict detection\n" +
+			"throughout the supported versions. mDNS forwarding was required before 10.3.58;\n" +
+			"the provider always sends a boolean for compatibility with those releases.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:      true,
