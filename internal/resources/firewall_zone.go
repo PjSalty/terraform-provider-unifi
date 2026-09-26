@@ -62,8 +62,14 @@ func (r *firewallZoneResource) Schema(_ context.Context, _ resource.SchemaReques
 			},
 			"network_ids": schema.SetAttribute{
 				Optional:    true,
+				Computed:    true,
 				ElementType: types.StringType,
-				Description: "UUIDs of the networks that belong to this zone.",
+				Description: "UUIDs of the networks that belong to this zone. When set, the list is " +
+					"authoritative and the zone is reconciled to exactly these networks. Omit it to let " +
+					"membership be owned elsewhere, for example by unifi_network's gateway.zone_id; the " +
+					"provider then reads membership from the controller and never rewrites it. Do not set " +
+					"both for the same zone, and leave it unset on system-defined zones, whose membership " +
+					"the controller manages.",
 			},
 		},
 	}
@@ -157,6 +163,26 @@ func (r *firewallZoneResource) Update(ctx context.Context, req resource.UpdateRe
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+	// The API requires networkIds on every write. When the configuration leaves
+	// membership to other resources, write back what the controller has now;
+	// sending the planned value (unknown here) as [] would strip every network
+	// out of the zone on a rename.
+	var configured types.Set
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("network_ids"), &configured)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if configured.IsNull() {
+		current, err := r.data.Client.Official().Firewall().GetZone(ctx, r.data.SiteID, id)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to read firewall zone membership", err.Error())
+			return
+		}
+		body.NetworkIds = current.NetworkIds
+		if body.NetworkIds == nil {
+			body.NetworkIds = []uuid.UUID{}
+		}
 	}
 	got, err := r.data.Client.Official().Firewall().UpdateZone(ctx, r.data.SiteID, id, body)
 	if err != nil {
