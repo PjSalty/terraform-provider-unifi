@@ -1,0 +1,3 @@
+kind: Fixed
+body: '`unifi_firewall_zone`: omitting `network_ids` no longer fails apply with "Provider produced inconsistent result". The attribute is now Optional+Computed. When it is omitted, the zone''s membership is treated as owned elsewhere (for example by `unifi_network`''s `gateway.zone_id`): the provider reads it from the controller and, on update, writes back the current membership instead of emptying the zone. When set, the list stays authoritative.'
+time: 2026-09-26T13:00:00.000000000-05:00

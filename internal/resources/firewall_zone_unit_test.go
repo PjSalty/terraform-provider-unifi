@@ -63,6 +63,21 @@ func fzPlan(t *testing.T, m firewallZoneModel) tfsdk.Plan {
 	return p
 }
 
+// fzConfig builds the configuration the framework hands Update alongside the plan.
+func fzConfig(t *testing.T, m firewallZoneModel) tfsdk.Config {
+	t.Helper()
+	s := fzState(t, m)
+	return tfsdk.Config(s)
+}
+
+// fzCurrent answers the membership read Update issues when network_ids is not
+// configured.
+func fzCurrent(networks ...uuid.UUID) func(context.Context, uuid.UUID, uuid.UUID) (*official.FirewallZone, error) {
+	return func(_ context.Context, _, id uuid.UUID) (*official.FirewallZone, error) {
+		return &official.FirewallZone{Id: id, Name: "iot-zone", NetworkIds: networks}, nil
+	}
+}
+
 // fzState builds a typed state carrying the model.
 func fzState(t *testing.T, m firewallZoneModel) tfsdk.State {
 	t.Helper()
@@ -300,9 +315,14 @@ func TestFirewallZoneReadNotFoundRemoves(t *testing.T) {
 }
 
 func TestFirewallZoneReadAPIError(t *testing.T) {
+	writes := 0
 	fw := &official.FirewallClientMock{
 		GetZoneFunc: func(context.Context, uuid.UUID, uuid.UUID) (*official.FirewallZone, error) {
 			return nil, errors.New("boom")
+		},
+		UpdateZoneFunc: func(context.Context, uuid.UUID, uuid.UUID, official.FirewallZoneCreateOrUpdate) (*official.FirewallZone, error) {
+			writes++
+			return nil, errors.New("unexpected write")
 		},
 	}
 	r := fzResource(t, fw)
@@ -394,7 +414,7 @@ func TestFirewallZoneUpdateBadID(t *testing.T) {
 		NetworkIDs: types.SetNull(types.StringType),
 	})
 	resp := resource.UpdateResponse{State: fzSchema(t)}
-	r.Update(context.Background(), resource.UpdateRequest{Plan: plan}, &resp)
+	r.Update(context.Background(), resource.UpdateRequest{Plan: plan, Config: fzConfig(t, fzPlanModel(t, plan))}, &resp)
 	fzWantErr(t, resp.Diagnostics, "Invalid firewall zone id")
 }
 
@@ -406,12 +426,13 @@ func TestFirewallZoneUpdateExpandError(t *testing.T) {
 		NetworkIDs: types.SetValueMust(types.StringType, []attr.Value{types.StringValue("not-a-uuid")}),
 	})
 	resp := resource.UpdateResponse{State: fzSchema(t)}
-	r.Update(context.Background(), resource.UpdateRequest{Plan: plan}, &resp)
+	r.Update(context.Background(), resource.UpdateRequest{Plan: plan, Config: fzConfig(t, fzPlanModel(t, plan))}, &resp)
 	fzWantErr(t, resp.Diagnostics, "Invalid UUID")
 }
 
 func TestFirewallZoneUpdateAPIError(t *testing.T) {
 	fw := &official.FirewallClientMock{
+		GetZoneFunc: fzCurrent(),
 		UpdateZoneFunc: func(context.Context, uuid.UUID, uuid.UUID, official.FirewallZoneCreateOrUpdate) (*official.FirewallZone, error) {
 			return nil, errors.New("boom")
 		},
@@ -423,13 +444,14 @@ func TestFirewallZoneUpdateAPIError(t *testing.T) {
 		NetworkIDs: types.SetNull(types.StringType),
 	})
 	resp := resource.UpdateResponse{State: fzSchema(t)}
-	r.Update(context.Background(), resource.UpdateRequest{Plan: plan}, &resp)
+	r.Update(context.Background(), resource.UpdateRequest{Plan: plan, Config: fzConfig(t, fzPlanModel(t, plan))}, &resp)
 	fzWantErr(t, resp.Diagnostics, "Failed to update firewall zone")
 }
 
 func TestFirewallZoneUpdateFlattenError(t *testing.T) {
 	dup := uuid.New()
 	fw := &official.FirewallClientMock{
+		GetZoneFunc: fzCurrent(),
 		UpdateZoneFunc: func(context.Context, uuid.UUID, uuid.UUID, official.FirewallZoneCreateOrUpdate) (*official.FirewallZone, error) {
 			return &official.FirewallZone{Id: uuid.New(), Name: "iot-zone", NetworkIds: []uuid.UUID{dup, dup}}, nil
 		},
@@ -441,7 +463,7 @@ func TestFirewallZoneUpdateFlattenError(t *testing.T) {
 		NetworkIDs: types.SetNull(types.StringType),
 	})
 	resp := resource.UpdateResponse{State: fzSchema(t)}
-	r.Update(context.Background(), resource.UpdateRequest{Plan: plan}, &resp)
+	r.Update(context.Background(), resource.UpdateRequest{Plan: plan, Config: fzConfig(t, fzPlanModel(t, plan))}, &resp)
 	if !resp.Diagnostics.HasError() {
 		t.Fatal("expected duplicate network IDs to fail flattening")
 	}
@@ -450,6 +472,7 @@ func TestFirewallZoneUpdateFlattenError(t *testing.T) {
 func TestFirewallZoneUpdateOK(t *testing.T) {
 	zoneID := uuid.New()
 	fw := &official.FirewallClientMock{
+		GetZoneFunc: fzCurrent(),
 		UpdateZoneFunc: func(_ context.Context, site uuid.UUID, id uuid.UUID, body official.FirewallZoneCreateOrUpdate) (*official.FirewallZone, error) {
 			if site != testutil.SiteID || id != zoneID {
 				t.Errorf("update zone called with site %s id %s", site, id)
@@ -464,7 +487,7 @@ func TestFirewallZoneUpdateOK(t *testing.T) {
 		NetworkIDs: types.SetNull(types.StringType),
 	})
 	resp := resource.UpdateResponse{State: fzSchema(t)}
-	r.Update(context.Background(), resource.UpdateRequest{Plan: plan}, &resp)
+	r.Update(context.Background(), resource.UpdateRequest{Plan: plan, Config: fzConfig(t, fzPlanModel(t, plan))}, &resp)
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("update: %v", resp.Diagnostics)
 	}
@@ -611,5 +634,140 @@ func TestFlattenFirewallZoneDirect(t *testing.T) {
 	}
 	if len(ids) != 1 || ids[0] != netID.String() {
 		t.Errorf("network ids = %v, want [%s]", ids, netID)
+	}
+}
+
+// fzPlanModel reads a plan back into the model so Config can mirror it.
+func fzPlanModel(t *testing.T, p tfsdk.Plan) firewallZoneModel {
+	t.Helper()
+	var m firewallZoneModel
+	if d := p.Get(context.Background(), &m); d.HasError() {
+		t.Fatalf("reading plan: %v", d)
+	}
+	return m
+}
+
+// Omitting network_ids declares a zone whose membership another resource owns
+// (unifi_network's gateway.zone_id). The API needs networkIds on every write,
+// so Update writes back the controller's current membership; sending the
+// unknown planned value as [] would empty the zone on a rename.
+func TestFirewallZoneUpdateOmittedNetworkIDsPreservesMembership(t *testing.T) {
+	zoneID, a, b := uuid.New(), uuid.New(), uuid.New()
+	var sent []uuid.UUID
+	fw := &official.FirewallClientMock{
+		GetZoneFunc: fzCurrent(a, b),
+		UpdateZoneFunc: func(_ context.Context, _, _ uuid.UUID, body official.FirewallZoneCreateOrUpdate) (*official.FirewallZone, error) {
+			sent = body.NetworkIds
+			return &official.FirewallZone{Id: zoneID, Name: body.Name, NetworkIds: body.NetworkIds}, nil
+		},
+	}
+	r := fzResource(t, fw)
+	m := firewallZoneModel{
+		ID:         types.StringValue(zoneID.String()),
+		Name:       types.StringValue("iot-renamed"),
+		NetworkIDs: types.SetUnknown(types.StringType),
+	}
+	cfg := m
+	cfg.NetworkIDs = types.SetNull(types.StringType)
+	resp := resource.UpdateResponse{State: fzSchema(t)}
+	r.Update(context.Background(), resource.UpdateRequest{Plan: fzPlan(t, m), Config: fzConfig(t, cfg)}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("update: %v", resp.Diagnostics)
+	}
+	if len(sent) != 2 {
+		t.Fatalf("update sent networkIds %v; an unconfigured zone must keep its controller membership %v", sent, []uuid.UUID{a, b})
+	}
+	var got firewallZoneModel
+	resp.State.Get(context.Background(), &got)
+	if got.NetworkIDs.IsUnknown() || got.NetworkIDs.IsNull() || len(got.NetworkIDs.Elements()) != 2 {
+		t.Errorf("state network_ids = %s, want the two networks the controller reported", got.NetworkIDs)
+	}
+}
+
+// A configured list is authoritative, so Update must send it verbatim and must
+// not consult the controller's membership.
+func TestFirewallZoneUpdateConfiguredNetworkIDsIsAuthoritative(t *testing.T) {
+	zoneID, want := uuid.New(), uuid.New()
+	reads := 0
+	fw := &official.FirewallClientMock{
+		GetZoneFunc: func(context.Context, uuid.UUID, uuid.UUID) (*official.FirewallZone, error) {
+			reads++
+			return nil, errors.New("unexpected membership read")
+		},
+		UpdateZoneFunc: func(_ context.Context, _, _ uuid.UUID, body official.FirewallZoneCreateOrUpdate) (*official.FirewallZone, error) {
+			if len(body.NetworkIds) != 1 || body.NetworkIds[0] != want {
+				t.Errorf("update sent networkIds %v, want exactly [%s]", body.NetworkIds, want)
+			}
+			return &official.FirewallZone{Id: zoneID, Name: body.Name, NetworkIds: body.NetworkIds}, nil
+		},
+	}
+	r := fzResource(t, fw)
+	m := firewallZoneModel{
+		ID:         types.StringValue(zoneID.String()),
+		Name:       types.StringValue("iot"),
+		NetworkIDs: types.SetValueMust(types.StringType, []attr.Value{types.StringValue(want.String())}),
+	}
+	resp := resource.UpdateResponse{State: fzSchema(t)}
+	r.Update(context.Background(), resource.UpdateRequest{Plan: fzPlan(t, m), Config: fzConfig(t, m)}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("update: %v", resp.Diagnostics)
+	}
+	if reads != 0 {
+		t.Errorf("GetZone called %d times; a configured network_ids list must not read controller membership", reads)
+	}
+}
+
+func TestFirewallZoneUpdateMembershipReadError(t *testing.T) {
+	writes := 0
+	fw := &official.FirewallClientMock{
+		GetZoneFunc: func(context.Context, uuid.UUID, uuid.UUID) (*official.FirewallZone, error) {
+			return nil, errors.New("boom")
+		},
+		UpdateZoneFunc: func(context.Context, uuid.UUID, uuid.UUID, official.FirewallZoneCreateOrUpdate) (*official.FirewallZone, error) {
+			writes++
+			return nil, errors.New("unexpected write")
+		},
+	}
+	r := fzResource(t, fw)
+	m := firewallZoneModel{
+		ID:         types.StringValue(uuid.New().String()),
+		Name:       types.StringValue("iot"),
+		NetworkIDs: types.SetNull(types.StringType),
+	}
+	resp := resource.UpdateResponse{State: fzSchema(t)}
+	r.Update(context.Background(), resource.UpdateRequest{Plan: fzPlan(t, m), Config: fzConfig(t, m)}, &resp)
+	fzWantErr(t, resp.Diagnostics, "Failed to read firewall zone membership")
+	if writes != 0 {
+		t.Errorf("UpdateZone called %d times after the membership read failed; it must not write a guessed list", writes)
+	}
+}
+
+// Issue #11. With network_ids omitted, Create is handed an unknown value for
+// the Optional+Computed attribute and may fill it in; before the fix it was a
+// planned null, and writing the controller's [] back failed the apply.
+func TestFirewallZoneCreateOmittedNetworkIDsIsConsistent(t *testing.T) {
+	zoneID := uuid.New()
+	r := fzResource(t, &official.FirewallClientMock{
+		CreateZoneFunc: func(_ context.Context, _ uuid.UUID, body official.FirewallZoneCreateOrUpdate) (*official.FirewallZone, error) {
+			return &official.FirewallZone{Id: zoneID, Name: body.Name, NetworkIds: body.NetworkIds}, nil
+		},
+	})
+	attrSchema := fzSchema(t).Schema.GetAttributes()["network_ids"]
+	if !attrSchema.IsComputed() {
+		t.Fatal("network_ids must be Computed: an omitted value plans null otherwise, and Create's known [] contradicts it")
+	}
+	resp := resource.CreateResponse{State: fzSchema(t)}
+	r.Create(context.Background(), resource.CreateRequest{Plan: fzPlan(t, firewallZoneModel{
+		ID:         types.StringUnknown(),
+		Name:       types.StringValue("IoT"),
+		NetworkIDs: types.SetUnknown(types.StringType),
+	})}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("create: %v", resp.Diagnostics)
+	}
+	var got firewallZoneModel
+	resp.State.Get(context.Background(), &got)
+	if got.NetworkIDs.IsUnknown() || got.NetworkIDs.IsNull() {
+		t.Errorf("state network_ids = %s; Create must resolve the unknown to the controller's known set", got.NetworkIDs)
 	}
 }

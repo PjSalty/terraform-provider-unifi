@@ -35,7 +35,7 @@ resource "unifi_firewall_zone" "iot" {
 
 ### Optional
 
-- `network_ids` (Set of String) UUIDs of the networks that belong to this zone.
+- `network_ids` (Set of String) UUIDs of the networks that belong to this zone. When set, the list is authoritative and the zone is reconciled to exactly these networks. Omit it to let membership be owned elsewhere, for example by unifi_network's gateway.zone_id; the provider then reads membership from the controller and never rewrites it. Do not set both for the same zone, and leave it unset on system-defined zones, whose membership the controller manages.
 
 ### Read-Only
 
