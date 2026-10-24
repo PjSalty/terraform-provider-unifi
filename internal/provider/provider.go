@@ -160,6 +160,7 @@ func (p *UniFiProvider) Resources(_ context.Context) []func() resource.Resource 
 		resources.NewHotspotVoucherResource,
 		resources.NewFirewallZoneResource,
 		resources.NewFirewallPolicyResource,
+		resources.NewDeviceRadioResource,
 	}
 }
 

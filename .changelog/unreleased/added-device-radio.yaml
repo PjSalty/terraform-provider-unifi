@@ -1,0 +1,3 @@
+kind: Added
+body: 'New `unifi_device_radio` resource: channel, channel width, transmit power and minimum RSSI for one radio of an adopted access point. The official Integration API cannot change radio settings (checked through Network 10.4.57), so this resource uses the controller''s internal device endpoint, the one the UniFi console calls, with the provider''s API key. It rewrites only the radio entry it manages and keeps every other field of the radio table, and radios of one AP are written one at a time so parallel applies cannot undo each other.'
+time: 2026-10-24T17:55:00.000000000-05:00
