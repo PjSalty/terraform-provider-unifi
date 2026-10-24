@@ -41,6 +41,11 @@ Targets the full official surface: networks, wifi broadcasts, devices, clients,
 ACLs, DNS policies, firewall, hotspot, traffic-matching lists, sites. Implemented
 first: `unifi_network`, `unifi_wifi_broadcast`, and a `unifi_devices` data source.
 
+One resource goes beyond it: `unifi_device_radio` sets channel, width, transmit
+power and minimum RSSI per access-point radio through the controller's internal
+device endpoint, with the same API key, because the official API has no way to
+change radio settings.
+
 ## Development
 
 ```bash
