@@ -1,0 +1,3 @@
+kind: Fixed
+body: '`unifi_wifi_broadcast` create and update with `security` `WPA3_PERSONAL` or `WPA2_WPA3_PERSONAL` failed with HTTP 400 "securityConfiguration.saeConfiguration must not be null". The security object now always carries `saeConfiguration` for those modes, with an anti-clogging threshold of 5 and a sync limit of 5 (the hostapd defaults). The two values are not attributes, so an apply resets them if they were changed in the UniFi console.'
+time: 2026-10-24T19:20:00.000000000-05:00

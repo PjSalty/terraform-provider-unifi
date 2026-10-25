@@ -792,6 +792,20 @@ func TestExpandSecurityWPA3(t *testing.T) {
 	if got["passphrase"] != "test-passphrase" {
 		t.Errorf("passphrase = %v, want test-passphrase", got["passphrase"])
 	}
+	assertSAEDefaults(t, got)
+}
+
+// assertSAEDefaults checks the saeConfiguration object every WPA3 mode must
+// carry: the controller answers 400 when it is null or missing a field.
+func assertSAEDefaults(t *testing.T, got map[string]any) {
+	t.Helper()
+	sae, ok := got["saeConfiguration"].(map[string]any)
+	if !ok {
+		t.Fatalf("saeConfiguration = %v, want an object", got["saeConfiguration"])
+	}
+	if sae["anticloggingThresholdSeconds"] != float64(5) || sae["syncTimeSeconds"] != float64(5) {
+		t.Errorf("saeConfiguration = %v, want anticloggingThresholdSeconds 5 and syncTimeSeconds 5", sae)
+	}
 }
 
 // TestExpandSecurityFastRoaming proves fastRoamingEnabled rides into the WPA
@@ -848,6 +862,7 @@ func TestExpandSecurityWPA2WPA3(t *testing.T) {
 		if got["pmfMode"] != "REQUIRED" {
 			t.Errorf("pmfMode = %v, want REQUIRED", got["pmfMode"])
 		}
+		assertSAEDefaults(t, got)
 	})
 	t.Run("without pmf mode", func(t *testing.T) {
 		sec, diags := expandSecurity(wifiBroadcastModel{
