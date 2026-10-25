@@ -515,6 +515,12 @@ func expandSecurity(m wifiBroadcastModel) (official.WifiSecurityConfigurationDet
 	// ("requires fast roaming setting"), so it is always sent. ValueBool coalesces a
 	// null (never happens once the Computed default resolves) to false.
 	fr := m.FastRoaming.ValueBool()
+	// Every WPA3 mode also needs saeConfiguration with both fields set, or the
+	// controller refuses the SSID ("securityConfiguration.saeConfiguration must not
+	// be null"). 5 and 5 are the hostapd defaults for the SAE anti-clogging
+	// threshold and sync limit. They are not attributes, so an apply resets a
+	// value changed in the console.
+	sae := &official.WifiSaeConfiguration{AnticloggingThresholdSeconds: 5, SyncTimeSeconds: 5}
 	var err error
 
 	switch m.Security.ValueString() {
@@ -529,9 +535,9 @@ func expandSecurity(m wifiBroadcastModel) (official.WifiSecurityConfigurationDet
 		err = sec.FromWifiWpa2PersonalSecurityConfigurationDetail(v)
 	case "WPA3_PERSONAL":
 		err = sec.FromWifiWpa3PersonalSecurityConfigurationDetail(
-			official.WifiWpa3PersonalSecurityConfigurationDetail{Type: "WPA3_PERSONAL", Passphrase: &pass, FastRoamingEnabled: &fr})
+			official.WifiWpa3PersonalSecurityConfigurationDetail{Type: "WPA3_PERSONAL", Passphrase: &pass, FastRoamingEnabled: &fr, SaeConfiguration: sae})
 	case "WPA2_WPA3_PERSONAL":
-		v := official.WifiWpa2Wpa3PersonalSecurityConfigurationDetail{Type: "WPA2_WPA3_PERSONAL", Passphrase: &pass, FastRoamingEnabled: &fr, Wpa3FastRoamingEnabled: &fr}
+		v := official.WifiWpa2Wpa3PersonalSecurityConfigurationDetail{Type: "WPA2_WPA3_PERSONAL", Passphrase: &pass, FastRoamingEnabled: &fr, Wpa3FastRoamingEnabled: &fr, SaeConfiguration: sae}
 		if !m.PmfMode.IsNull() && m.PmfMode.ValueString() != "" {
 			pm := official.WifiWpa2Wpa3PersonalSecurityConfigurationDetailPmfMode(m.PmfMode.ValueString())
 			v.PmfMode = &pm
