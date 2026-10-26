@@ -1,0 +1,3 @@
+kind: Fixed
+body: '`unifi_device_radio` apply failed with "Provider produced inconsistent result after apply" when the controller answered the read-back with the old radio table for a moment after accepting the write (seen live on `tx_power_mode`). After a write, the resource now re-reads the radio until it shows the planned values, for up to 15 seconds, and only then records the state; a value the controller really refuses is still returned as the controller reports it.'
+time: 2026-10-25T23:30:00.000000000-05:00

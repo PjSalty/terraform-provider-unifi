@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -50,6 +52,13 @@ var (
 // radio of an AP lives in that one table, so two radios applied in parallel
 // would otherwise each write back the other's old values.
 var deviceLocks sync.Map
+
+// How long write keeps re-reading a radio until the controller reports the
+// values it just accepted, and how often. Variables so tests can shorten them.
+var (
+	readbackTimeout  = 15 * time.Second
+	readbackInterval = time.Second
+)
 
 func lockDevice(key string) func() {
 	v, _ := deviceLocks.LoadOrStore(key, &sync.Mutex{})
@@ -308,15 +317,32 @@ func (r *deviceRadioResource) write(ctx context.Context, m deviceRadioModel) (de
 			diags.AddError("Failed to update the radio", fmt.Sprintf("%s %s GHz: %v", mac, band, err))
 			return m, diags
 		}
-		dev, err = r.fetch(ctx, mac)
-		if err != nil {
-			diags.AddError("Failed to read the radio back", fmt.Sprintf("%s: %v", mac, err))
-			return m, diags
-		}
-		entry = radioEntry(dev.RadioTable, radioCodes[band])
-		if entry == nil {
-			diags.AddError("Radio not found", fmt.Sprintf("Access point %s has no %s GHz radio after the update.", mac, band))
-			return m, diags
+		// The controller can answer stat/device with the old radio table for a
+		// few seconds after the PUT, which Terraform then reports as an
+		// inconsistent result. Re-read until the radio shows the write, up to
+		// readbackTimeout; after that the controller's values are returned as
+		// they are, so a write it really refused still surfaces.
+		deadline := time.Now().Add(readbackTimeout)
+		for {
+			dev, err = r.fetch(ctx, mac)
+			if err != nil {
+				diags.AddError("Failed to read the radio back", fmt.Sprintf("%s: %v", mac, err))
+				return m, diags
+			}
+			entry = radioEntry(dev.RadioTable, radioCodes[band])
+			if entry == nil {
+				diags.AddError("Radio not found", fmt.Sprintf("Access point %s has no %s GHz radio after the update.", mac, band))
+				return m, diags
+			}
+			if !setRadioFields(maps.Clone(entry), m) || !time.Now().Before(deadline) {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				diags.AddError("Stopped waiting for the radio update", fmt.Sprintf("%s %s GHz: %v", mac, band, ctx.Err()))
+				return m, diags
+			case <-time.After(readbackInterval):
+			}
 		}
 	}
 	m.ID = types.StringValue(radioID(mac, band))
