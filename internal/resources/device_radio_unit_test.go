@@ -43,6 +43,11 @@ type drAP struct {
 	afterPut func([]map[string]any) []map[string]any
 	gets     int
 	putPaths []string
+	// staleGets makes the next n GETs after each PUT still return the table
+	// from before it, as the controller does for a few seconds.
+	staleGets int
+	stale     []map[string]any
+	staleLeft int
 }
 
 func (a *drAP) get(_ context.Context, apiPath string, _ any, respBody any) error {
@@ -58,9 +63,14 @@ func (a *drAP) get(_ context.Context, apiPath string, _ any, respBody any) error
 		return fmt.Errorf("unexpected GET %s", apiPath)
 	}
 	a.mu.Lock()
+	table := a.table
+	if a.staleLeft > 0 {
+		table = a.stale
+		a.staleLeft--
+	}
 	data := []any{}
 	if !a.missing {
-		data = append(data, map[string]any{"_id": drDeviceID, "mac": drMAC, "radio_table": a.table})
+		data = append(data, map[string]any{"_id": drDeviceID, "mac": drMAC, "radio_table": table})
 	}
 	b, err := json.Marshal(map[string]any{"data": data})
 	a.mu.Unlock()
@@ -88,6 +98,7 @@ func (a *drAP) put(_ context.Context, apiPath string, reqBody any, respBody any)
 	}
 	a.mu.Lock()
 	a.putPaths = append(a.putPaths, apiPath)
+	a.stale, a.staleLeft = a.table, a.staleGets
 	a.table = body.RadioTable
 	if a.afterPut != nil {
 		a.table = a.afterPut(a.table)
@@ -288,6 +299,70 @@ func TestDeviceRadioCreateChangesOnlyItsRadio(t *testing.T) {
 	if got != want {
 		t.Errorf("state = %+v, want %+v", got, want)
 	}
+}
+
+// withReadback shortens the read-back wait for one test.
+func withReadback(t *testing.T, timeout, interval time.Duration) {
+	t.Helper()
+	oldTimeout, oldInterval := readbackTimeout, readbackInterval
+	readbackTimeout, readbackInterval = timeout, interval
+	t.Cleanup(func() { readbackTimeout, readbackInterval = oldTimeout, oldInterval })
+}
+
+// TestDeviceRadioCreateWaitsForTheWriteToShow covers the controller answering
+// with the old radio table for a moment after the PUT (seen live as Terraform's
+// "inconsistent result after apply"): write re-reads until the change shows.
+func TestDeviceRadioCreateWaitsForTheWriteToShow(t *testing.T) {
+	withReadback(t, time.Second, time.Millisecond)
+	ap := &drAP{table: drTable(), staleGets: 2}
+	m := drPlanModel("5")
+	m.TxPowerMode = types.StringValue("medium")
+
+	got, d := drCreate(t, drRes(t, ap.client()), m)
+	if d.HasError() {
+		t.Fatalf("create: %v", d)
+	}
+	if got.TxPowerMode.ValueString() != "medium" {
+		t.Errorf("tx_power_mode = %v, want medium once the controller shows the write", got.TxPowerMode)
+	}
+	if ap.gets != 4 {
+		t.Errorf("GETs = %d, want 4: one before the PUT, two stale, one current", ap.gets)
+	}
+}
+
+// TestDeviceRadioCreateStopsWaitingAtTheDeadline returns what the controller
+// reports once readbackTimeout passes, so a write it refused still surfaces.
+func TestDeviceRadioCreateStopsWaitingAtTheDeadline(t *testing.T) {
+	withReadback(t, 20*time.Millisecond, time.Millisecond)
+	ap := &drAP{table: drTable(), staleGets: 1 << 20}
+	m := drPlanModel("5")
+	m.TxPowerMode = types.StringValue("medium")
+
+	got, d := drCreate(t, drRes(t, ap.client()), m)
+	if d.HasError() {
+		t.Fatalf("create: %v", d)
+	}
+	if got.TxPowerMode.ValueString() != "high" {
+		t.Errorf("tx_power_mode = %v, want the controller's high after the deadline", got.TxPowerMode)
+	}
+	if ap.gets < 3 {
+		t.Errorf("GETs = %d, want several read-backs before giving up", ap.gets)
+	}
+}
+
+// TestDeviceRadioCreateWaitHonoursCancel stops re-reading when the context ends.
+func TestDeviceRadioCreateWaitHonoursCancel(t *testing.T) {
+	withReadback(t, time.Minute, time.Minute)
+	ap := &drAP{table: drTable(), staleGets: 1 << 20}
+	m := drPlanModel("5")
+	m.TxPowerMode = types.StringValue("medium")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	r := drRes(t, ap.client())
+	resp := resource.CreateResponse{State: drSchema(t)}
+	r.Create(ctx, resource.CreateRequest{Plan: drPlan(t, m)}, &resp)
+	drWantErr(t, resp.Diagnostics, "Stopped waiting for the radio update")
 }
 
 func TestDeviceRadioCreateKeepsEachKeysJSONType(t *testing.T) {
