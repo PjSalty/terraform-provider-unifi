@@ -5,13 +5,34 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    # Job-level only: contents to publish the release, id-token and
+    # attestations for the build provenance step.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
+      # Fail closed: a tag release never ships unsigned. There is no skip path
+      # here; local snapshot builds (goreleaser release --snapshot --skip=sign)
+      # publish nothing and run outside this workflow.
+      - name: Require signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_FINGERPRINT: ${{ vars.GPG_FINGERPRINT }}
+        run: |
+          if [ -z "${GPG_PRIVATE_KEY}" ]; then
+            echo "::error::GPG_PRIVATE_KEY secret is not set; refusing to publish an unsigned release."
+            exit 1
+          fi
+          if [ -z "${GPG_FINGERPRINT}" ]; then
+            echo "::error::GPG_FINGERPRINT variable is not set; refusing to publish an unsigned release."
+            exit 1
+          fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
@@ -19,13 +40,11 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Import GPG key
-        if: env.GPG_PRIVATE_KEY != ''
         uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6
+        # The release key has no passphrase, so none is passed: the action's
+        # passphrase input is optional and an empty value skips agent presetting.
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
       # Pinned by commit (v0.24.3) rather than piping a branch-tip install
       # script into sh in a job that holds the signing key. Puts syft on PATH
       # for goreleaser's sboms step.
@@ -37,7 +56,16 @@ jobs:
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
         with:
           version: '~> v2'
-          args: release --clean ${{ secrets.GPG_PRIVATE_KEY && ' ' || '--skip=sign' }}
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ vars.GPG_FINGERPRINT }}
+      # actions/attest v4.2.2 (2026-08-04), checked 2026-11-01. Successor to
+      # actions/attest-build-provenance; default predicate is SLSA build provenance.
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            dist/*.zip
+            dist/*_SHA256SUMS
+          create-storage-record: false
