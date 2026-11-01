@@ -110,7 +110,7 @@ func TestExpandNetworkMarshalsGateway(t *testing.T) {
 // TestExpandNetworkMarshalsGatewayDHCP asserts the nested DHCP server union
 // (mode SERVER + range + dns + domain + lease) marshals correctly.
 func TestExpandNetworkMarshalsGatewayDHCP(t *testing.T) {
-	dns, d := types.ListValueFrom(context.Background(), types.StringType, []string{"10.10.20.13", "1.1.1.1"})
+	dns, d := types.ListValueFrom(context.Background(), types.StringType, []string{"192.168.10.53", "1.1.1.1"})
 	if d.HasError() {
 		t.Fatalf("build dns list: %v", d)
 	}
@@ -168,7 +168,7 @@ func TestExpandNetworkMarshalsGatewayDHCP(t *testing.T) {
 		t.Errorf("pingConflictDetectionEnabled = %v, want false", dhcp["pingConflictDetectionEnabled"])
 	}
 	dnsOut, ok := dhcp["dnsServerIpAddressesOverride"].([]any)
-	if !ok || len(dnsOut) != 2 || dnsOut[0] != "10.10.20.13" {
+	if !ok || len(dnsOut) != 2 || dnsOut[0] != "192.168.10.53" {
 		t.Errorf("dnsServerIpAddressesOverride = %v", dhcp["dnsServerIpAddressesOverride"])
 	}
 }
@@ -215,7 +215,7 @@ func TestFlattenNetwork(t *testing.T) {
 // as NetworkDetails, and flattens it back, asserting the L3 + DHCP survive the
 // full round trip through the controller wire format.
 func TestNetworkRoundTripGatewayDHCP(t *testing.T) {
-	dns, _ := types.ListValueFrom(context.Background(), types.StringType, []string{"10.10.20.13"})
+	dns, _ := types.ListValueFrom(context.Background(), types.StringType, []string{"192.168.10.53"})
 	body := expandNetworkForTest(t, networkModel{
 		Name:       types.StringValue("Corp"),
 		VlanID:     types.Int64Value(10),
@@ -294,7 +294,7 @@ func TestNetworkRoundTripGatewayDHCP(t *testing.T) {
 	if d := m.Gateway.DHCP.DNSServers.ElementsAs(context.Background(), &dnsOut, false); d.HasError() {
 		t.Fatalf("dns elements: %v", d)
 	}
-	if len(dnsOut) != 1 || dnsOut[0] != "10.10.20.13" {
-		t.Errorf("dns_servers = %v, want [10.10.20.13]", dnsOut)
+	if len(dnsOut) != 1 || dnsOut[0] != "192.168.10.53" {
+		t.Errorf("dns_servers = %v, want [192.168.10.53]", dnsOut)
 	}
 }

@@ -365,7 +365,7 @@ func TestFirewallPolicyExpandSourceIPAddresses(t *testing.T) {
 	m.Source = &firewallPolicySourceModel{
 		ZoneID:      types.StringValue(fpSrcZone.String()),
 		NetworkIDs:  fpNullStr(),
-		IPAddresses: fpStrList("10.10.50.10", "10.10.50.11"),
+		IPAddresses: fpStrList("192.0.2.10", "192.0.2.11"),
 		Ports:       fpNullInt(),
 	}
 	tf := fpObj(t, fpObj(t, fpJSON(t, fpExpand(t, m)), "source"), "trafficFilter")
@@ -381,7 +381,7 @@ func TestFirewallPolicyExpandSourceIPAddresses(t *testing.T) {
 		t.Fatalf("items = %v, want 2 entries", ipf["items"])
 	}
 	first := items[0].(map[string]any)
-	if first["type"] != "IP_ADDRESS" || first["value"] != "10.10.50.10" {
+	if first["type"] != "IP_ADDRESS" || first["value"] != "192.0.2.10" {
 		t.Errorf("first item = %v", first)
 	}
 }

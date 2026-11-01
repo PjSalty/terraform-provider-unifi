@@ -61,7 +61,7 @@ resource "unifi_network" "corp" {
     dhcp = {
       range_start                     = "192.168.10.100"
       range_stop                      = "192.168.10.200"
-      dns_servers                     = ["10.10.20.13"]
+      dns_servers                     = ["192.168.10.53"]
       domain_name                     = "corp.lan"
       lease_time_seconds              = 86400
       ping_conflict_detection_enabled = true
